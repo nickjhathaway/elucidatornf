@@ -14,6 +14,19 @@ workflow {
   }
 
   PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER(params.pw_samples_file, params.bams_dir, params.pw_bed_fnp, params.genome_fnp, params.pw_results_dir)
-
+  
 }
+
+workflow.onComplete {
+  record_params()
+}
+  
+  def record_params() {
+    
+    def output = new File("${params.pw_results_dir}/parameters.tsv")
+
+    params.each{ k, v -> 
+        output.append("${k}\t${v}\n")
+    }
+  }
 
