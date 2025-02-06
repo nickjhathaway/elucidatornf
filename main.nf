@@ -1,84 +1,19 @@
 #!/usr/bin/env nextflow
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    nickjhathaway/elucidatornf
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/nickjhathaway/elucidatornf
-----------------------------------------------------------------------------------------
-*/
+nextflow.enable.dsl = 2
 
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    IMPORT FUNCTIONS / MODULES / SUBWORKFLOWS / WORKFLOWS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
 
-include { ELUCIDATORNF  } from './workflows/elucidatornf'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_elucidatornf_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_elucidatornf_pipeline'
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    NAMED WORKFLOWS FOR PIPELINE
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
+include {PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER} from './subworkflows/local/PathWeaver/PathWeaver_Extract_Regions_Pop_Cluster.nf'
 
-//
-// WORKFLOW: Run main analysis pipeline depending on type of input
-//
-workflow NICKJHATHAWAY_ELUCIDATORNF {
-
-    take:
-    samplesheet // channel: samplesheet read in from --input
-
-    main:
-
-    //
-    // WORKFLOW: Run pipeline
-    //
-    ELUCIDATORNF (
-        samplesheet
-    )
-}
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    RUN MAIN WORKFLOW
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
 
 workflow {
 
-    main:
-    //
-    // SUBWORKFLOW: Run initialisation tasks
-    //
-    PIPELINE_INITIALISATION (
-        params.version,
-        params.validate_params,
-        params.monochrome_logs,
-        args,
-        params.outdir,
-        params.input
-    )
+  main:
+  // Validate inputs
+  if (params.pw_samples_file == null || params.bams_dir == null  || params.pw_bed_fnp == null || params.genome_fnp == null || params.pw_results_dir == null) {
+      error "flags '--pw_samples_file', '--bams_dir', '--pw_bed_fnp', '--genome_fnp', and '--pw_results_dir' must be specified!"
+  }
 
-    //
-    // WORKFLOW: Run main workflow
-    //
-    NICKJHATHAWAY_ELUCIDATORNF (
-        PIPELINE_INITIALISATION.out.samplesheet
-    )
-    //
-    // SUBWORKFLOW: Run completion tasks
-    //
-    PIPELINE_COMPLETION (
-        params.outdir,
-        params.monochrome_logs,
-        
-        
-    )
+  PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER(params.pw_samples_file, params.bams_dir, params.pw_bed_fnp, params.genome_fnp, params.pw_results_dir)
+
 }
 
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    THE END
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
