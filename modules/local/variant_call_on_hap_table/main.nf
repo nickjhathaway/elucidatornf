@@ -20,11 +20,11 @@ process VARIANT_CALL_ON_HAP_TABLE {
     val extra_args
 
     output:
-    path "variantCalls/reports", emit: reports
+    path "reports", emit: reports
 
 
     script:
-    def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--groupingsFile ${meta_fnp}"
+    def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--metaFnp ${meta_fnp}"
     def known_amino_acid_changes_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
     def getting_pairwise_comps_arg = getting_pairwise_comps ? "" : "--getPairwiseComps"
     def meta_fields_to_calc_pop_diffs_arg = "" == meta_fields_to_calc_pop_diffs ? "" : "--metaFieldsToCalcPopDiffs ${meta_fields_to_calc_pop_diffs}"

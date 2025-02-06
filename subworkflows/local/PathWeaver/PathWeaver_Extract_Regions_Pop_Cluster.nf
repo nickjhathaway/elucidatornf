@@ -28,19 +28,33 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     pop_clus_dir.mkdirs()
 
     // Load samples from file and create a channel
-    samples = Channel
-        .fromPath("${samples_file}")
-        .splitText()
-        .map{samp -> 
-            samp.trim() // Remove any whitespace
-            }
+    log.info "samples_file is ${samples_file}"
+    if ("EMPTY_FILE.txt" == file("${samples_file}").name){
+        // log.info "${bams_dir}/*${params.bams_file_ending}"
+        // samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
+        //     .map{ samp_file ->
+        //         file(samp_file).name.replaceAll("${params.bams_file_ending}", "")
+        //     }.view()
+        samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
+            .map{ samp_file ->
+                file(samp_file).name.replaceAll("${params.bams_file_ending}", "")
+        }
+    } else { 
+        samples = Channel
+            .fromPath("${samples_file}")
+            .splitText()
+            .map{samp -> 
+                samp.trim() // Remove any whitespace
+                }
+    }
+
 
     // Construct a channel of tuples (BAM, BAI, bed, genome_dir, primary_genome, results_dir)
     input_ch = samples.map { samp -> 
         tuple(
             samp,
-            file("${bams_dir}/${samp}.sorted.bam"), 
-            file("${bams_dir}/${samp}.sorted.bam.bai"), 
+            file("${bams_dir}/${samp}${params.bams_file_ending}"), 
+            file("${bams_dir}/${samp}${params.bams_file_ending}.bai"), 
             file("${bed_fnp}"),
             file("${genome_fnp}").getParent(),
             file("${genome_fnp}").getBaseName(), 
@@ -140,20 +154,26 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
 
 
     if (params.do_variant_calling){
-        def variant_call_dir = file("${results_dir}/PathWeaverResults")
+        def variant_call_dir = file("${results_dir}/PathWeaverResults/variantCalls")
+        def meta_fnp_for_variant_calling_ch = Channel.fromPath(params.meta_fnp)
+        if ("EMPTY_FILE.txt" != file(params.meta_fnp).baseName ){
+            //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
+            meta_fnp_for_variant_calling_ch = PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+        }
         VARIANT_CALL_ON_HAP_TABLE (
-            file(bed_fnp), PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_all_selected_clusters_info, 
+            file(bed_fnp),
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_all_selected_clusters_info, 
             file("${genome_fnp}").getParent(), 
             genome_base_name,
             file(gff_fnp), 
             file(known_amino_acid_changes_fnp), 
-        params.vc_variant_frequency_cut_off, 
-        params.vc_variant_occurrence_cut_off, 
-        file(params.meta_fnp), 
-        params.vc_getting_pairwise_comps, 
-        params.meta_fields_to_calc_pop_diffs, 
-        file(variant_call_dir), 
-        params.vc_extra_args
+            params.vc_variant_frequency_cut_off, 
+            params.vc_variant_occurrence_cut_off, 
+            meta_fnp_for_variant_calling_ch, 
+            params.vc_getting_pairwise_comps, 
+            params.meta_fields_to_calc_pop_diffs, 
+            file(variant_call_dir), 
+            params.vc_extra_args
         )
 
         /*
