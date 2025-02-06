@@ -17,16 +17,3 @@ workflow {
   
 }
 
-workflow.onComplete {
-  record_params()
-}
-  
-  def record_params() {
-    
-    def output = new File("${params.pw_results_dir}/parameters.tsv")
-
-    params.each{ k, v -> 
-        output.append("${k}\t${v}\n")
-    }
-  }
-

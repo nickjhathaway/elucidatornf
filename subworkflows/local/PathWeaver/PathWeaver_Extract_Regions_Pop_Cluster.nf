@@ -18,8 +18,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     main:
 
 
-    // Create output directory if not exists
-    new File(results_dir).mkdirs()
+    // Create output directory if not exists and overwrite if it does
+    def results_dir_obj = file(results_dir)
+    if (results_dir_obj.exists()){
+        results_dir_obj.deleteDir()
+    }
+    results_dir_obj.mkdirs()
 
     // Load samples from file and create a channel
     samples = Channel
@@ -56,9 +60,10 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
 
   
 def record_PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_params() {
-    def output = new File("${params.pw_results_dir}/run/parameters.tsv")
-    params.each{ k, v -> 
-        output.append("${k}\t${v}\n")
+    def output = file("${params.pw_results_dir}/run/parameters.tsv")
+    output.withWriter { writer -> 
+        params.each { k, v -> 
+            writer.println("${k}\t${v}")} 
     }
 }
 
@@ -69,39 +74,39 @@ def record_PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_params() {
  */
 def record_PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_runtime() {
 
-    def output = new File("${params.pw_results_dir}/run/runtime.tsv")
-
-    // Append ContainerEngine first as shown in your example
-    output.append("PipelineVersion\t${workflow.manifest.version}\n")
-    output.append("ContainerEngine\t${workflow.containerEngine}\n")
-    output.append("Duration\t${workflow.duration}\n")
-    output.append("CommandLine\t${workflow.commandLine}\n")
-    output.append("CommitId\t${workflow.commitId}\n")
-    output.append("Complete\t${workflow.complete}\n")
-    output.append("ConfigFiles\t${workflow.configFiles.join(', ')}\n")
-    output.append("Container\t${workflow.container}\n")
-    output.append("ErrorMessage\t${workflow.errorMessage}\n")
-    output.append("ErrorReport\t${workflow.errorReport}\n")
-    output.append("ExitStatus\t${workflow.exitStatus}\n")
-    output.append("HomeDir\t${workflow.homeDir}\n")
-    output.append("LaunchDir\t${workflow.launchDir}\n")
-    output.append("Manifest\t${workflow.manifest}\n")
-    output.append("Profile\t${workflow.profile}\n")
-    output.append("ProjectDir\t${workflow.projectDir}\n")
-    output.append("Repository\t${workflow.repository}\n")
-    output.append("Resume\t${workflow.resume}\n")
-    output.append("Revision\t${workflow.revision}\n")
-    output.append("RunName\t${workflow.runName}\n")
-    output.append("ScriptFile\t${workflow.scriptFile}\n")
-    output.append("ScriptId\t${workflow.scriptId}\n")
-    output.append("ScriptName\t${workflow.scriptName}\n")
-    output.append("SessionId\t${workflow.sessionId}\n")
-    output.append("Start\t${workflow.start}\n")
-    output.append("StubRun\t${workflow.stubRun}\n")
-    output.append("Success\t${workflow.success}\n")
-    output.append("UserName\t${workflow.userName}\n")
-    output.append("WorkDir\t${workflow.workDir}\n")
-    output.append("NextflowBuild\t${nextflow.build}\n")
-    output.append("NextflowTimestamp\t${nextflow.timestamp}\n")
-    output.append("NextflowVersion\t${nextflow.version}\n")
+    def output = file("${params.pw_results_dir}/run/runtime.tsv")
+    output.withWriter { writer -> 
+        writer.println("PipelineVersion\t${workflow.manifest.version}")
+        writer.println("ContainerEngine\t${workflow.containerEngine}")
+        writer.println("Duration\t${workflow.duration}")
+        writer.println("CommandLine\t${workflow.commandLine}")
+        writer.println("CommitId\t${workflow.commitId}")
+        writer.println("Complete\t${workflow.complete}")
+        writer.println("ConfigFiles\t${workflow.configFiles.join(', ')}")
+        writer.println("Container\t${workflow.container}")
+        writer.println("ErrorMessage\t${workflow.errorMessage}")
+        writer.println("ErrorReport\t${workflow.errorReport}")
+        writer.println("ExitStatus\t${workflow.exitStatus}")
+        writer.println("HomeDir\t${workflow.homeDir}")
+        writer.println("LaunchDir\t${workflow.launchDir}")
+        writer.println("Manifest\t${workflow.manifest}")
+        writer.println("Profile\t${workflow.profile}")
+        writer.println("ProjectDir\t${workflow.projectDir}")
+        writer.println("Repository\t${workflow.repository}")
+        writer.println("Resume\t${workflow.resume}")
+        writer.println("Revision\t${workflow.revision}")
+        writer.println("RunName\t${workflow.runName}")
+        writer.println("ScriptFile\t${workflow.scriptFile}")
+        writer.println("ScriptId\t${workflow.scriptId}")
+        writer.println("ScriptName\t${workflow.scriptName}")
+        writer.println("SessionId\t${workflow.sessionId}")
+        writer.println("Start\t${workflow.start}")
+        writer.println("StubRun\t${workflow.stubRun}")
+        writer.println("Success\t${workflow.success}")
+        writer.println("UserName\t${workflow.userName}")
+        writer.println("WorkDir\t${workflow.workDir}")
+        writer.println("NextflowBuild\t${nextflow.build}")
+        writer.println("NextflowTimestamp\t${nextflow.timestamp}")
+        writer.println("NextflowVersion\t${nextflow.version}")
+    }
 }
