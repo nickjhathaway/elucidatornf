@@ -7,7 +7,6 @@ nextflow.enable.dsl = 2
     Github : https://github.com/nickjhathaway/elucidatornf
 ----------------------------------------------------------------------------------------
 */
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT FUNCTIONS / MODULES / SUBWORKFLOWS / WORKFLOWS
@@ -74,11 +73,8 @@ workflow {
     PIPELINE_COMPLETION (
         params.outdir,
         params.monochrome_logs,
-        
-        
     )
 }
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     THE END

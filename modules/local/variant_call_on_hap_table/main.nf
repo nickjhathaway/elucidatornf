@@ -7,7 +7,7 @@ process VARIANT_CALL_ON_HAP_TABLE {
     input:
     path bedfile_fnp
     path input_results
-    path genome_dir_fnp 
+    path genome_dir_fnp
     val primary_genome
     path gff_fnp
     path known_amino_acid_changes_fnp

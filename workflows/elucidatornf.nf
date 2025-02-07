@@ -23,7 +23,7 @@ workflow ELUCIDATORNF {
     main:
 
     ch_versions = Channel.empty()
-    
+
 
     //
     // Collate and save software versions

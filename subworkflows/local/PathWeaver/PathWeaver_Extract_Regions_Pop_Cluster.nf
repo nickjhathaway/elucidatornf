@@ -15,9 +15,9 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     samples_file  // Path to the list of sample names (one per line)
     bams_dir  // Directory containing BAM files
     bed_fnp  // Path to the BED file
-    genome_fnp // Path to the genome file 
+    genome_fnp // Path to the genome file
     results_dir // Directory to store results
-    meta_fnp //meta file 
+    meta_fnp //meta file
 
     main:
 
@@ -30,44 +30,39 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     // Load samples from file and create a channel
     log.info "samples_file is ${samples_file}"
     if ("EMPTY_FILE.txt" == file("${samples_file}").name){
-        // log.info "${bams_dir}/*${params.bams_file_ending}"
-        // samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
-        //     .map{ samp_file ->
-        //         file(samp_file).name.replaceAll("${params.bams_file_ending}", "")
-        //     }.view()
         samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
             .map{ samp_file ->
                 file(samp_file).name.replaceAll("${params.bams_file_ending}", "")
         }
-    } else { 
+    } else {
         samples = Channel
             .fromPath("${samples_file}")
             .splitText()
-            .map{samp -> 
+            .map{samp ->
                 samp.trim() // Remove any whitespace
                 }
     }
 
 
     // Construct a channel of tuples (BAM, BAI, bed, genome_dir, primary_genome, results_dir)
-    input_ch = samples.map { samp -> 
+    input_ch = samples.map { samp ->
         tuple(
             samp,
-            file("${bams_dir}/${samp}${params.bams_file_ending}"), 
-            file("${bams_dir}/${samp}${params.bams_file_ending}.bai"), 
+            file("${bams_dir}/${samp}${params.bams_file_ending}"),
+            file("${bams_dir}/${samp}${params.bams_file_ending}.bai"),
             file("${bed_fnp}"),
             file("${genome_fnp}").getParent(),
-            file("${genome_fnp}").getBaseName(), 
+            file("${genome_fnp}").getBaseName(),
             file("${results_dir}").baseName
         )
     }
-    // run PathWeaver on each 
+    // run PathWeaver on each
     EXTRACT_REGION_ASSEMBLIES(input_ch)
 
     // concatenate the results files
     CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(EXTRACT_REGION_ASSEMBLIES.out | collect, reports_dir.toString())
 
-    // run population clustering 
+    // run population clustering
     PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, pop_clus_dir.toString())
 
     emit:
@@ -85,7 +80,7 @@ workflow EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES {
     pop_clustering_res_pop_clustering_dir //pop_clus_results
     pop_clustering_res_targets_with_results //the targets with results
     bed_fnp  // Path to the BED file
-    genome_fnp // Path to the genome file 
+    genome_fnp // Path to the genome file
     sub_var_regions //Path to results output directory
 
     main:
@@ -102,22 +97,22 @@ workflow EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES {
             file("${it[1]}"),
             file("${bed_fnp}"),
             file("${genome_fnp}").getParent(),
-            file("${genome_fnp}").getBaseName(), 
+            file("${genome_fnp}").getBaseName(),
             it[0],
             params.correction_occurence_cut_off,
             params.low_freq_cut_off
-            )  
+            )
         }
 
     GET_SUB_SEGMENTS_FROM_FASTA(targets_input_ch)
     def top_genome_info = file("${genome_fnp}").getParent().getParent()
     def genome_base_name = file("${genome_fnp}").getBaseName()
     def gff_fnp = file("${top_genome_info}/info/gff/${genome_base_name}.gff")
-    
+
     CONCATENATE_SUB_SEGMENT_LOCS(
-        GET_SUB_SEGMENTS_FROM_FASTA.out.ref_variable_expanded_genomic_0_bed | collect, 
-        GET_SUB_SEGMENTS_FROM_FASTA.out.ref_sharedLocs_genomic_0_bed | collect, 
-        gff_fnp, 
+        GET_SUB_SEGMENTS_FROM_FASTA.out.ref_variable_expanded_genomic_0_bed | collect,
+        GET_SUB_SEGMENTS_FROM_FASTA.out.ref_sharedLocs_genomic_0_bed | collect,
+        gff_fnp,
         sub_var_regions.toString()
     )
     emit:
@@ -132,9 +127,9 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
     samples_file  // Path to the list of sample names (one per line)
     bams_dir  // Directory containing BAM files
     bed_fnp  // Path to the BED file
-    genome_fnp // Path to the genome file 
+    genome_fnp // Path to the genome file
     results_dir // Directory to store results
-    meta_fnp //meta file 
+    meta_fnp //meta file
 
     main:
 
@@ -162,43 +157,19 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
         }
         VARIANT_CALL_ON_HAP_TABLE (
             file(bed_fnp),
-            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_all_selected_clusters_info, 
-            file("${genome_fnp}").getParent(), 
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_all_selected_clusters_info,
+            file("${genome_fnp}").getParent(),
             genome_base_name,
-            file(gff_fnp), 
-            file(known_amino_acid_changes_fnp), 
-            params.vc_variant_frequency_cut_off, 
-            params.vc_variant_occurrence_cut_off, 
-            meta_fnp_for_variant_calling_ch, 
-            params.vc_getting_pairwise_comps, 
-            params.meta_fields_to_calc_pop_diffs, 
-            file(variant_call_dir), 
+            file(gff_fnp),
+            file(known_amino_acid_changes_fnp),
+            params.vc_variant_frequency_cut_off,
+            params.vc_variant_occurrence_cut_off,
+            meta_fnp_for_variant_calling_ch,
+            params.vc_getting_pairwise_comps,
+            params.meta_fields_to_calc_pop_diffs,
+            file(variant_call_dir),
             params.vc_extra_args
         )
-
-        /*
-    path bedfile_fnp
-    path input_results
-    path genome_fnp
-    path gff_fnp
-    path known_amino_acid_changes_fnp
-    val variant_frequency_cut_off
-    val variant_occurrence_cut_off
-    path meta_fnp
-    val getting_pairwise_comps
-    val meta_fields_to_calc_pop_diffs
-    val pub_results_dir
-    val extra_args
-
-        do_variant_calling = false
-    variant_calling_ncpus = 10
-    known_amino_acid_changes_fnp = "${projectDir}/etc/EMPTY_FILE.txt"
-    vc_variant_frequency_cut_off = 0.99
-    vc_variant_occurrence_cut_off = 2
-    vc_getting_pairwise_comps = false
-    meta_fields_to_calc_pop_diffs = "" //region,country,subRegion,secondaryRegion
-    vc_extra_args = ""
-        */
     }
 
     def sub_var_regions = file("${full_results_dir}/subVarRegions/")
@@ -207,12 +178,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
     if (params.run_sub_segments_determination){
         sub_var_regions_pop_clus_dir.mkdirs()
 
-        // extract out regions 
+        // extract out regions
         EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES(
-            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_pop_clustering_dir, 
-            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_targets_with_results, 
-            bed_fnp, 
-            genome_fnp, 
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_pop_clustering_dir,
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_targets_with_results,
+            bed_fnp,
+            genome_fnp,
             sub_var_regions)
 
         // Load samples from file and create a channel
@@ -221,23 +192,23 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
             .map{ samp, var_bed_fnp ->
                 tuple(samp, var_bed_fnp)
             }.map{
-               tuple(it[0],
-                file("${bams_dir}/${it[0]}.sorted.bam"), 
-                file("${bams_dir}/${it[0]}.sorted.bam.bai"), 
-                file("${it[1]}"),
-                file("${genome_fnp}").getParent(),
-                file("${genome_fnp}").getBaseName(), 
-                var_dir_name
+                tuple(it[0],
+                    file("${bams_dir}/${it[0]}.sorted.bam"),
+                    file("${bams_dir}/${it[0]}.sorted.bam.bai"),
+                    file("${it[1]}"),
+                    file("${genome_fnp}").getParent(),
+                    file("${genome_fnp}").getBaseName(),
+                    var_dir_name
                 )
             }
-        
-        // run PathWeaver on the small variable regions  
+
+        // run PathWeaver on the small variable regions
         EXTRACT_REGION_ASSEMBLIES(input_ch_with_var_regions)
 
         // concatenate the results files
         CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(EXTRACT_REGION_ASSEMBLIES.out | collect, sub_var_regions.toString())
 
-        // run population clustering 
+        // run population clustering
         PATHWEAVER_POP_CLUSTERING(var_dir_name, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, sub_var_regions_pop_clus_dir.toString())
     }
 
@@ -252,12 +223,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
 }
 
 
-  
+
 def record_PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_params() {
     def output = file("${params.pw_results_dir}/run/parameters.tsv")
-    output.withWriter { writer -> 
-        params.each { k, v -> 
-            writer.println("${k}\t${v}")} 
+    output.withWriter { writer ->
+        params.each { k, v ->
+            writer.println("${k}\t${v}")}
     }
 }
 
@@ -269,7 +240,7 @@ def record_PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_params() {
 def record_PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_runtime() {
 
     def output = file("${params.pw_results_dir}/run/runtime.tsv")
-    output.withWriter { writer -> 
+    output.withWriter { writer ->
         writer.println("PipelineVersion\t${workflow.manifest.version}")
         writer.println("ContainerEngine\t${workflow.containerEngine}")
         writer.println("Duration\t${workflow.duration}")
