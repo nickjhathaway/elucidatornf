@@ -28,7 +28,6 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     pop_clus_dir.mkdirs()
 
     // Load samples from file and create a channel
-    log.info "samples_file is ${samples_file}"
     if ("EMPTY_FILE.txt" == file("${samples_file}").name){
         samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
             .map{ samp_file ->
@@ -193,8 +192,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
                 tuple(samp, var_bed_fnp)
             }.map{
                 tuple(it[0],
-                    file("${bams_dir}/${it[0]}.sorted.bam"),
-                    file("${bams_dir}/${it[0]}.sorted.bam.bai"),
+                    file("${bams_dir}/${it[0]}${params.bams_file_ending}"),
+                    file("${bams_dir}/${it[0]}${params.bams_file_ending}.bai"),
                     file("${it[1]}"),
                     file("${genome_fnp}").getParent(),
                     file("${genome_fnp}").getBaseName(),
