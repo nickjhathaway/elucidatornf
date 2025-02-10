@@ -8,6 +8,8 @@ include { GET_SUB_SEGMENTS_FROM_FASTA } from '../../../modules/local/get_sub_seg
 include { CONCATENATE_SUB_SEGMENT_LOCS } from '../../../modules/local/concatenate_sub_segment_locs/main.nf'
 include { CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS } from '../../../modules/local/concatenate_extract_region_assemblies_results/main.nf'
 include { VARIANT_CALL_ON_HAP_TABLE } from '../../../modules/local/variant_call_on_hap_table/main.nf'
+include { VARIANT_CALL_ON_HAP_TABLE as VARIANT_CALL_ON_HAP_TABLE_2 } from '../../../modules/local/variant_call_on_hap_table/main.nf'
+include { CREATE_TWOBIT_FILE_FOR_GENOME } from '../../../modules/local/create_twobit_file_for_genome/main.nf'
 
 
 workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
@@ -16,6 +18,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     bams_dir  // Directory containing BAM files
     bed_fnp  // Path to the BED file
     genome_fnp // Path to the genome file
+    // genome_twobit_fnp // Path to the genome twobit file
     results_dir // Directory to store results
     meta_fnp //meta file
 
@@ -135,7 +138,10 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
     def top_genome_info = file("${genome_fnp}").getParent().getParent()
     def genome_base_name = file("${genome_fnp}").getBaseName()
     def gff_fnp = file("${top_genome_info}/info/gff/${genome_base_name}.gff")
-    def known_amino_acid_changes_fnp = file("${top_genome_info}/info/pf_drug_resistant_aaPositions.tsv")
+    def known_amino_acid_changes_fnp = params.empty_file_fnp
+    if(file("${top_genome_info}/info/drug_resistant_aaPositions.tsv").exists()){
+        known_amino_acid_changes_fnp = file("${top_genome_info}/info/drug_resistant_aaPositions.tsv")
+    }
 
     // Create output directory if not exists and overwrite if it does
     def results_dir_obj = file(results_dir)
@@ -200,7 +206,6 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
                     var_dir_name
                 )
             }
-
         // run PathWeaver on the small variable regions
         EXTRACT_REGION_ASSEMBLIES(input_ch_with_var_regions)
 
@@ -209,6 +214,30 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
 
         // run population clustering
         PATHWEAVER_POP_CLUSTERING(var_dir_name, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, sub_var_regions_pop_clus_dir.toString())
+
+        if (params.do_variant_calling){
+            def subvars_variant_call_dir = file("${sub_var_regions}/variantCalls")
+            def meta_fnp_for_variant_calling2_ch = Channel.fromPath(params.meta_fnp)
+            if ("EMPTY_FILE.txt" != file(params.meta_fnp).baseName ){
+                //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
+                meta_fnp_for_variant_calling2_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+            }
+            VARIANT_CALL_ON_HAP_TABLE_2 (
+                EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_regions,
+                PATHWEAVER_POP_CLUSTERING.out.all_selected_clusters_info,
+                file("${genome_fnp}").getParent(),
+                genome_base_name,
+                file(gff_fnp),
+                file(known_amino_acid_changes_fnp),
+                params.vc_variant_frequency_cut_off,
+                params.vc_variant_occurrence_cut_off,
+                meta_fnp_for_variant_calling2_ch,
+                params.vc_getting_pairwise_comps,
+                params.meta_fields_to_calc_pop_diffs,
+                file(subvars_variant_call_dir),
+                params.vc_extra_args
+            )
+        }
     }
 
     workflow.onComplete {
