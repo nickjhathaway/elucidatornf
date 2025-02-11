@@ -91,15 +91,17 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
         //.groupTuple(by : 1, size: fastq_input_ch.count())
         // .groupTuple(by : 1, size: fastq_count)
         .groupTuple(by : 1)
-        .map { samples, target, target_fastqs ->
-            tuple(
-                target_fastqs, // List of fastq files for this target
-                target,
-                params.nanopore_clustering_ncpus,
-                meta_fnp,
-                ref_seqs_dir_ch,
-                params.nanopore_clustering_min_sample_read_count
-            )
+        .combine(ref_seqs_dir_ch)
+        .map { samples, target, target_fastqs, ref_seqs_dir ->
+                tuple(
+                    target_fastqs, // List of fastq files for this target
+                    target,
+                    params.nanopore_clustering_ncpus,
+                    meta_fnp,
+                    // GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info,
+                    ref_seqs_dir,
+                    params.nanopore_clustering_min_sample_read_count
+                )
         }
     // population clustering
     AMPLICON_POPULATION_CLUSTERING(input_to_population_clustering)
@@ -132,5 +134,67 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
             params.vc_extra_args
         )
     }
-}  //PATHWEAVER_EXTRACT_REGIONS_FULL
 
+    workflow.onComplete {
+        def outputDir = file("${params.outdir}/run")
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        record_NANOPORE_AMPLICON_CLUSTERING_params()
+        record_NANOPORE_AMPLICON_CLUSTERING_runtime()
+    }
+}  //NANOPORE_AMPLICON_CLUSTERING
+
+
+
+def record_NANOPORE_AMPLICON_CLUSTERING_params() {
+    def output = file("${params.pw_results_dir}/run/parameters.tsv")
+    output.withWriter { writer ->
+        params.each { k, v ->
+            writer.println("${k}\t${v}")}
+    }
+}
+
+/* Record runtime information
+ *
+ * Records runtime and environment information and writes summary to a tabulated (tsv) file
+ *
+ */
+def record_NANOPORE_AMPLICON_CLUSTERING_runtime() {
+
+    def output = file("${params.pw_results_dir}/run/runtime.tsv")
+    output.withWriter { writer ->
+        writer.println("PipelineVersion\t${workflow.manifest.version}")
+        writer.println("ContainerEngine\t${workflow.containerEngine}")
+        writer.println("Duration\t${workflow.duration}")
+        writer.println("CommandLine\t${workflow.commandLine}")
+        writer.println("CommitId\t${workflow.commitId}")
+        writer.println("Complete\t${workflow.complete}")
+        writer.println("ConfigFiles\t${workflow.configFiles.join(', ')}")
+        writer.println("Container\t${workflow.container}")
+        writer.println("ErrorMessage\t${workflow.errorMessage}")
+        writer.println("ErrorReport\t${workflow.errorReport}")
+        writer.println("ExitStatus\t${workflow.exitStatus}")
+        writer.println("HomeDir\t${workflow.homeDir}")
+        writer.println("LaunchDir\t${workflow.launchDir}")
+        writer.println("Manifest\t${workflow.manifest}")
+        writer.println("Profile\t${workflow.profile}")
+        writer.println("ProjectDir\t${workflow.projectDir}")
+        writer.println("Repository\t${workflow.repository}")
+        writer.println("Resume\t${workflow.resume}")
+        writer.println("Revision\t${workflow.revision}")
+        writer.println("RunName\t${workflow.runName}")
+        writer.println("ScriptFile\t${workflow.scriptFile}")
+        writer.println("ScriptId\t${workflow.scriptId}")
+        writer.println("ScriptName\t${workflow.scriptName}")
+        writer.println("SessionId\t${workflow.sessionId}")
+        writer.println("Start\t${workflow.start}")
+        writer.println("StubRun\t${workflow.stubRun}")
+        writer.println("Success\t${workflow.success}")
+        writer.println("UserName\t${workflow.userName}")
+        writer.println("WorkDir\t${workflow.workDir}")
+        writer.println("NextflowBuild\t${nextflow.build}")
+        writer.println("NextflowTimestamp\t${nextflow.timestamp}")
+        writer.println("NextflowVersion\t${nextflow.version}")
+    }
+}
