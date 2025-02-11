@@ -4,7 +4,7 @@ process AMPLICON_POPULATION_CLUSTERING {
     cpus   { ncpus }
 
     input:
-    tuple path(fastqs_fnp), val(target_name), val(ncpus), path(meta_fnp, name: 'meta.tsv'), path(previous_pop_fnp, name: 'previous_pop.fasta'), val(sample_min_read_count)
+    tuple path(fastqs_fnp), val(target_name), val(ncpus), path(meta_fnp, name: 'meta.tsv'), path(previous_pop_dir), val(sample_min_read_count)
 
 
     output:
@@ -14,9 +14,9 @@ process AMPLICON_POPULATION_CLUSTERING {
 
     """
     meta_arg="--groupingsFile ${meta_fnp}"
-    previous_pop_arg="--previousPop ${previous_pop_fnp}"
+    previous_pop_arg="--previousPop ${previous_pop_dir}/${target_name}.fasta"
     if [ ! -s "\$(readlink -f ${meta_fnp})" ]; then meta_arg=""; fi
-    if [ ! -s "\$(readlink -f ${previous_pop_fnp})" ]; then previous_pop_arg=""; fi
+    if [ ! -f ${previous_pop_dir}/${target_name}.fasta ]; then previous_pop_arg=""; fi
     SeekDeep processClusters \
             --flatMasterDir \
             --strictErrors \

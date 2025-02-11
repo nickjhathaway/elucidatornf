@@ -9,6 +9,7 @@ include { CONCATENATE_EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/
 include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amplicon_cluster_by_kmer_similarity/main.nf'
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
+include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/gen_target_info_from_genomes/main.nf'
 
 
 workflow NANOPORE_AMPLICON_CLUSTERING {
@@ -84,6 +85,8 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     // log.info "fastq_count is ${fastq_count}"
     // Get the count of fastq files
     // def fastq_count = fastq_files.size()
+    def ref_seqs_dir_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info.map{ seek_deep_info_dir ->
+            file("${seek_deep_info_dir}/refSeqs")}
     def input_to_population_clustering = AMPLICON_CLUSTER_BY_KMER_SIMILARITY.out.output_results
         //.groupTuple(by : 1, size: fastq_input_ch.count())
         // .groupTuple(by : 1, size: fastq_count)
@@ -94,7 +97,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
                 target,
                 params.nanopore_clustering_ncpus,
                 meta_fnp,
-                params.empty_file_fnp,
+                ref_seqs_dir_ch,
                 params.nanopore_clustering_min_sample_read_count
             )
         }
