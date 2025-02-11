@@ -8,6 +8,9 @@ process INDEX_GENOMES_DIR {
     script:
 
     """
+    #unzip any genomes that are currently zipped, keep the zipped in case it was needed
+    find ${genome_dir}/ -type f -name "*.gz" -exec gunzip -k {} ";"
+
     elucidator bioIndexGenomes --genomeDir ${genome_dir} --numThreads ${ncpus}
     """
 }

@@ -148,7 +148,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
 
 
 def record_NANOPORE_AMPLICON_CLUSTERING_params() {
-    def output = file("${params.pw_results_dir}/run/parameters.tsv")
+    def output = file("${params.outdir}/run/parameters.tsv")
     output.withWriter { writer ->
         params.each { k, v ->
             writer.println("${k}\t${v}")}
@@ -162,7 +162,7 @@ def record_NANOPORE_AMPLICON_CLUSTERING_params() {
  */
 def record_NANOPORE_AMPLICON_CLUSTERING_runtime() {
 
-    def output = file("${params.pw_results_dir}/run/runtime.tsv")
+    def output = file("${params.outdir}/run/runtime.tsv")
     output.withWriter { writer ->
         writer.println("PipelineVersion\t${workflow.manifest.version}")
         writer.println("ContainerEngine\t${workflow.containerEngine}")
