@@ -6,6 +6,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractins.txt"
 
 
     input:
@@ -20,6 +21,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
     path "genome_extraction/forSeekDeep", emit: for_seek_deep_info
     path "genome_extraction/locationsByGenome", emit: locations_by_genome
     path "genome_extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
+    path "targets_with_extractins.txt", emit: targets_with_extractins
 
     script:
     if (file("${pub_dir}/genome_extraction/forSeekDeep").exists() && file("${primers_fnp}").lastModified() < file("${pub_dir}/genome_extraction/forSeekDeep").lastModified()){
@@ -28,6 +30,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
         cp -r "${pub_dir}/genome_extraction/forSeekDeep" genome_extraction/
         cp -r "${pub_dir}/genome_extraction/locationsByGenome" genome_extraction/
         cp "${pub_dir}/genome_extraction/allExtractionCounts.tab.txt" genome_extraction/
+        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt --delim tab --columnName extractionCounts --header --cutOff 0 | elucidator printCol --file STDIN --delim tab --header --columnName target --sort --unique  > targets_with_extractins.txt
         """
     } else {
         """
@@ -40,6 +43,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
                 --errors ${errors_allowed} \
                 --numThreads ${ncpus} \
                 --useBlast
+        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt --delim tab --columnName extractionCounts --header --cutOff 0 | elucidator printCol --file STDIN --delim tab --header --columnName target --sort --unique  > targets_with_extractins.txt
         """
     }
 }

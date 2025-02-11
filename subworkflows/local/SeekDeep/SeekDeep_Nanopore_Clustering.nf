@@ -55,7 +55,12 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     )
 
     //get the targets that have coverage
-    def targets = CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.targets_with_passing_reads
+    // def targets = CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.targets_with_passing_reads
+    //     .splitText()
+    //     .map{samp ->
+    //         samp.trim() // Remove any whitespace
+    //         }
+    def targets = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.targets_with_extractins
         .splitText()
         .map{samp ->
             samp.trim() // Remove any whitespace
