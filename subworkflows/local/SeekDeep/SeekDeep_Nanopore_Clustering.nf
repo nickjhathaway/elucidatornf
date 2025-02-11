@@ -74,12 +74,14 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     AMPLICON_CLUSTER_BY_KMER_SIMILARITY(input_to_clustering)
 
 
-    //final population level clustering per target
-    // AMPLICON_CLUSTER_BY_KMER_SIMILARITY.out.output_results
-    //     .groupTuple(by : 1)
-    //     .view()
-
+    // Use Groovy to count the files in the directory matching the glob pattern
+    // def fastq_count = file("${input_fastq_dir}/*.fastq.gz").size()
+    // log.info "fastq_count is ${fastq_count}"
+    // Get the count of fastq files
+    // def fastq_count = fastq_files.size()
     def input_to_population_clustering = AMPLICON_CLUSTER_BY_KMER_SIMILARITY.out.output_results
+        //.groupTuple(by : 1, size: fastq_input_ch.count())
+        // .groupTuple(by : 1, size: fastq_count)
         .groupTuple(by : 1)
         .map { samples, target, target_fastqs ->
             tuple(
@@ -100,8 +102,9 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     if (params.do_variant_calling){
         def variant_call_dir = file("${final_results_dir}/variantCalls")
         def known_amino_acid_changes_fnp = params.empty_file_fnp
-        if(file("${genome_dir}/info/drug_resistant_aaPositions.tsv").exists()){
-            known_amino_acid_changes_fnp = file("${genome_dir}/info/drug_resistant_aaPositions.tsv")
+        genome_dir_top = genome_dir.getParent()
+        if(file("${genome_dir_top}/info/drug_resistant_aaPositions.tsv").exists()){
+            known_amino_acid_changes_fnp = file("${genome_dir_top}/info/drug_resistant_aaPositions.tsv")
         }
         def bed_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome.map{loc_dir ->
                 file("${loc_dir}/${params.vc_primary_genome}_inner.bed")}
