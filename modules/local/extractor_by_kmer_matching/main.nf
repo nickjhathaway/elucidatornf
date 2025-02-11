@@ -12,9 +12,11 @@ process EXTRACTOR_BY_KMER_MATCHING {
     // val min_len_cut_off
 
     output:
-    path "extraction/*.fastq.gz", emit: fastqs_per_target
-    path "extraction/extractionProfile.tab.txt", emit: extraction_profile_per_target
-    path "extraction/extractionStats.tab.txt", emit: extraction_stats
+    tuple val(sample_name), path("extraction/*.fastq.gz"), emit: fastqs_per_target
+    tuple val(sample_name), path("extraction/"), emit: sample_dir
+
+    path "${sample_name}_extractionProfile.tab.txt", emit: extraction_profile_per_target
+    path "${sample_name}_extractionStats.tab.txt", emit: extraction_stats
 
     script:
     """
@@ -27,5 +29,8 @@ process EXTRACTOR_BY_KMER_MATCHING {
             --sampleName ${sample_name} \
             --lenCutOffs ${length_cut_offs_per_target} \
             --minLenCutOff ${min_len_cut_off}
+    ln -s extraction/extractionProfile.tab.txt ${sample_name}_extractionProfile.tab.txt
+    ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt
+
     """
 }

@@ -10,10 +10,10 @@ process VARIANT_CALL_ON_HAP_TABLE {
     path genome_dir_fnp
     val primary_genome
     path gff_fnp
-    path known_amino_acid_changes_fnp
+    path known_amino_acid_changes_fnp, name: "known_amino_acid_changes.tsv"
     val variant_frequency_cut_off
     val variant_occurrence_cut_off
-    path meta_fnp
+    path meta_fnp, name: "meta.tsv"
     val getting_pairwise_comps
     val meta_fields_to_calc_pop_diffs
     val pub_results_dir
@@ -24,24 +24,27 @@ process VARIANT_CALL_ON_HAP_TABLE {
 
 
     script:
-    def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--metaFnp ${meta_fnp}"
-    def known_amino_acid_changes_arg = "EMPTY_FILE.txt" == "${known_amino_acid_changes_fnp}" ? "" : "--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
+    // def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--metaFnp ${meta_fnp}"
+    // def known_amino_acid_changes_arg = "EMPTY_FILE.txt" == "${known_amino_acid_changes_fnp}" ? "" : "--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
     def getting_pairwise_comps_arg = getting_pairwise_comps ? "" : "--getPairwiseComps"
     def meta_fields_to_calc_pop_diffs_arg = "" == meta_fields_to_calc_pop_diffs ? "" : "--metaFieldsToCalcPopDiffs ${meta_fields_to_calc_pop_diffs}"
     """
-
+    meta_arg="--groupingsFile ${meta_fnp}"
+    known_amino_acid_changes_arg="--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
+    if [ ! -s "\$(readlink -f ${meta_fnp})" ]; then meta_arg=""; fi
+    if [ ! -s "\$(readlink -f ${known_amino_acid_changes_fnp})" ]; then known_amino_acid_changes_arg=""; fi
     SeekDeep variantCallOnSeqAndProtein \
         --genomicLocations ${bedfile_fnp} \
         --resultsFnp ${input_results} \
         --genome ${genome_dir_fnp}/${primary_genome}.fasta \
         --gff ${gff_fnp} \
-        ${known_amino_acid_changes_arg} \
+        \${known_amino_acid_changes_arg} \
         --variantFrequencyCutOff ${variant_frequency_cut_off} \
         --variantOccurrenceCutOff ${variant_occurrence_cut_off} \
         --ignoreSubFields site:LabCross,site:LabControl,site:LabContaminated \
         --dout variantCalls \
         --numThreads ${params.variant_calling_ncpus} \
-        ${meta_arg} \
+        \${meta_arg} \
         --exportLabIsolateSeqs \
         ${getting_pairwise_comps_arg} \
         ${meta_fields_to_calc_pop_diffs_arg}\

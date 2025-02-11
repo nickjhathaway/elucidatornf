@@ -3,38 +3,45 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
     cpus   { ncpus }
 
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "forSeekDeep"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "locationsByGenome"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "allExtractionCounts.tab.txt"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
 
 
     input:
     path primers_fnp
-    path pub_dir
+    val pub_dir
     path genome_dir
     path gff_dir
     val errors_allowed
     val ncpus
 
     output:
-    path "forSeekDeep", emit: for_seek_deep_info
-    path "locationsByGenome", emit: locations_by_genome
-    path "allExtractionCounts.tab.txt", emit: all_extraction_counts
+    path "genome_extraction/forSeekDeep", emit: for_seek_deep_info
+    path "genome_extraction/locationsByGenome", emit: locations_by_genome
+    path "genome_extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
 
     script:
-    """
-    SeekDeep genTargetInfoFromGenomes \
-            --primers ${primers_fnp} \
-            --longRangeAmplicon \
-            --genomeDir ${genome_dir} \
-            --gffDir ${gff_dir} \
-            --dout extraction \
-            --errors ${errors_allowed} \
-            --numThreads ${ncpus} \
-            --useBlast
-    ln -s extraction/forSeekDeep
-    ln -s extraction/locationsByGenome
-    """
+    if (file("${pub_dir}/genome_extraction/forSeekDeep").exists() && file("${primers_fnp}").lastModified() < file("${pub_dir}/genome_extraction/forSeekDeep").lastModified()){
+        """
+        mkdir genome_extraction
+        cp -r "${pub_dir}/genome_extraction/forSeekDeep" genome_extraction/
+        cp -r "${pub_dir}/genome_extraction/locationsByGenome" genome_extraction/
+        cp "${pub_dir}/genome_extraction/allExtractionCounts.tab.txt" genome_extraction/
+        """
+    } else {
+        """
+        SeekDeep genTargetInfoFromGenomes \
+                --primers ${primers_fnp} \
+                --longRangeAmplicon \
+                --genomeDir ${genome_dir} \
+                --gffDir ${gff_dir} \
+                --dout genome_extraction \
+                --errors ${errors_allowed} \
+                --numThreads ${ncpus} \
+                --useBlast
+        """
+    }
 }
 
 process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
@@ -49,7 +56,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
 
     input:
     path primers_fnp
-    path pub_dir
+    val pub_dir
     path genome_dir
     path gff_dir
     val paired_end_length
@@ -59,7 +66,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     output:
     path "forSeekDeep", emit: for_seek_deep_info
     path "locationsByGenome", emit: locations_by_genome
-    path "allExtractionCounts.tab.txt", emit: all_extraction_counts
+    path "extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
 
     script:
     """
