@@ -20,14 +20,14 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     gff_dir // a directory with annotation gff files
     primers_errors_allowed // errors to allow in primers
     meta_fnp //a sample meta file
-
+    output_dir // the output directory
     main:
 
-    def primer_info_dir = file("${params.outdir}/primerInfo")
+    def primer_info_dir = file("${output_dir}/primerInfo")
     primer_info_dir.mkdirs()
-    def extraction_reports_dir = file("${params.outdir}/extractionReports")
+    def extraction_reports_dir = file("${output_dir}/extractionReports")
     extraction_reports_dir.mkdirs()
-    def final_results_dir = file("${params.outdir}/finalResults")
+    def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
     GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
 
@@ -136,7 +136,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     }
 
     workflow.onComplete {
-        def outputDir = file("${params.outdir}/run")
+        def outputDir = file("${output_dir}/run")
         if (!outputDir.exists()) {
             outputDir.mkdirs()
         }
