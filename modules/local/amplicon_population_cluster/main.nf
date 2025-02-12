@@ -31,6 +31,7 @@ process AMPLICON_POPULATION_CLUSTERING {
             \${meta_arg} \
             --experimentName ${target_name} \
             --numThreads ${ncpus}\
+            --previousPop-largeBaseIndel 0.99 --previousPop-oneBaseIndel 0.99 --previousPop-twoBaseIndel 0.99 \
             \${previous_pop_arg}
     ln -s analysis/selectedClustersInfo.tab.txt.gz ${target_name}_selectedClustersInfo.tab.txt.gz
     """
