@@ -10,14 +10,28 @@ format:
 
 
 ```{r}
+#cran
 library(readr)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-library(ComplexHeatmap)
 library(DT)
 library(plotly)
+#bioconductor
+library(ComplexHeatmap)
+#github
 library(HaplotypeRainbows)
+
+#install instructions if you don't have the packages above 
+##cran
+###install.packages(c('readr', 'ggplot2', 'dplyr', 'tidyr', 'DT', 'plotly', 'remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
+##bioconductor
+###install.packages("BiocManager")
+###BiocManager::install(ask = FALSE)
+###BiocManager::install("ComplexHeatmap", ask = FALSE)
+##github
+###install.packages(c('remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
+###remotes::install_github('nickjhathaway/HaplotypeRainbows@develop')
 ```
 
 ```{r}
