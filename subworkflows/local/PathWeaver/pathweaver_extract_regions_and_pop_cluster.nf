@@ -87,7 +87,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
             params.vc_variant_frequency_cut_off,
             params.vc_variant_occurrence_cut_off,
             meta_fnp_for_variant_calling_ch,
-            params.vc_getting_pairwise_comps,
+            !params.vc_no_pairwise_comps,
             params.meta_fields_to_calc_pop_diffs,
             file(variant_call_dir),
             params.vc_extra_args

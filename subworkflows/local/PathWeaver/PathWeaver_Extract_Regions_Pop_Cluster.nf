@@ -81,16 +81,16 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
         sub_var_regionsInfoDir.mkdirs()
 
         // extract out regions
-        EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES(
+        EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES(
             PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_pop_clustering_dir,
             PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_targets_with_results,
             bed_ch,
             genome_fnp,
             sub_var_results_dir)
 
-        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir)
+        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir)
 
-        PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
+        PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
 
         if (params.do_variant_calling){
             //copy over dashboard quarto document
@@ -118,7 +118,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
 
 
 
-workflow EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES {
+workflow EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES {
     take:
     pop_clustering_res_pop_clustering_dir //pop_clus_results
     pop_clustering_res_targets_with_results //the targets with results
@@ -154,12 +154,14 @@ workflow EXTRACT_VARIABLE_REGIONS_FROM_PATHWEAVER_ASSEMBLIES {
 
     CONCATENATE_SUB_SEGMENT_LOCS(
         GET_SUB_SEGMENTS_FROM_FASTA.out.ref_variable_expanded_genomic_0_bed | collect,
+        GET_SUB_SEGMENTS_FROM_FASTA.out.ref_variable_genomic_0_bed | collect,
         GET_SUB_SEGMENTS_FROM_FASTA.out.ref_sharedLocs_genomic_0_bed | collect,
         gff_fnp,
         sub_var_regions.toString()
     )
     emit:
     variable_regions = CONCATENATE_SUB_SEGMENT_LOCS.out.all_variable_regions
+    variable_expanded_regions = CONCATENATE_SUB_SEGMENT_LOCS.out.all_variable_expanded_regions
     all_conserved_regions = CONCATENATE_SUB_SEGMENT_LOCS.out.all_conserved_regions
     combined_all_sub_regions = CONCATENATE_SUB_SEGMENT_LOCS.out.combined_all_sub_regions
 }

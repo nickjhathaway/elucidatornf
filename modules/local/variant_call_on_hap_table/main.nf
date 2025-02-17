@@ -21,12 +21,13 @@ process VARIANT_CALL_ON_HAP_TABLE {
 
     output:
     path "reports", emit: reports
+    // path "variantCalls/runLog*", emit: run_log
 
 
     script:
     // def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--metaFnp ${meta_fnp}"
     // def known_amino_acid_changes_arg = "EMPTY_FILE.txt" == "${known_amino_acid_changes_fnp}" ? "" : "--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
-    def getting_pairwise_comps_arg = getting_pairwise_comps ? "" : "--getPairwiseComps"
+    def getting_pairwise_comps_arg = getting_pairwise_comps ? "--getPairwiseComps" : ""
     def meta_fields_to_calc_pop_diffs_arg = "" == meta_fields_to_calc_pop_diffs ? "" : "--metaFieldsToCalcPopDiffs ${meta_fields_to_calc_pop_diffs}"
     """
     meta_arg="--groupingsFile ${meta_fnp}"
