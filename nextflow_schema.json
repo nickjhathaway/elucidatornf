@@ -10,7 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": ["outdir"],
             "properties": {
                 "input": {
                     "type": "string",
@@ -122,18 +122,261 @@
                     "hidden": true
                 }
             }
+        },
+        "pathweaver_regions": {
+            "title": "PathWeaver_Regions",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "pw_ncpus": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Per region number CPUs to use"
+                },
+                "pw_pop_clustering_ncpus": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "the number of CPUs during population clustering to use"
+                },
+                "pw_seqs_table": {
+                    "type": "string",
+                    "description": "A table of seqs with at least 3 columns, target, name, seq"
+                },
+                "pw_seqs_table_seqs_col": {
+                    "type": "string",
+                    "description": "the column name of the seqs column in pw_seqs_table"
+                },
+                "pw_seqs_table_name_col": {
+                    "type": "string",
+                    "description": "the column name of the name column in pw_seqs_table"
+                },
+                "pw_seqs_table_target_col": {
+                    "type": "string",
+                    "description": "the column name of the target column in pw_seqs_table"
+                },
+                "pw_gene_ids": {
+                    "type": "string",
+                    "description": "a no header file with each line being a gene ID"
+                },
+                "pw_samples_file": {
+                    "type": "string",
+                    "description": "a no header file with each line being a sample name"
+                },
+                "pw_bed_fnp": {
+                    "type": "string",
+                    "description": "a 6 column bed file of regions to run PathWeaver on"
+                },
+                "bams_dir": {
+                    "type": "string",
+                    "description": "a directory of coordinate sorted bam files"
+                },
+                "bams_file_ending": {
+                    "type": "string",
+                    "default": ".sorted.bam",
+                    "description": "the ending of the bam files in bams_dir"
+                },
+                "render_pw_report": {
+                    "type": "boolean",
+                    "description": "whether or not to run quarto on the dashboard quarto docs"
+                },
+                "run_sub_segments_determination": {
+                    "type": "boolean",
+                    "description": "whether to run the sub segment variant determination"
+                },
+                "correction_occurence_cut_off": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "the correction occurrence cut off to use when doing run_sub_segments_determination"
+                },
+                "low_freq_cut_off": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "the low frequent cut off to use when doing run_sub_segments_determination"
+                }
+            },
+            "required": ["bams_dir"]
+        },
+        "nanopore_clustering": {
+            "title": "Nanopore Clustering",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "nanopore_clustering_min_len": {
+                    "type": "integer",
+                    "default": 100,
+                    "description": "the minimum length for the nanopore clustering pipeline"
+                },
+                "nanopore_clustering_min_sample_read_count": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "the minimum amount of reads per sample in order to used in final output"
+                },
+                "nanopore_primers_errors_allowed": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "the errors to allow in the determination of default parameters when extracting from genomes"
+                },
+                "nanopore_clustering_ncpus": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "the cpus to use be clustering step"
+                }
+            }
+        },
+        "variant_calling": {
+            "title": "Variant Calling",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "variant_calling_ncpus": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "the number of cpus to use during variant calling"
+                },
+                "do_variant_calling": {
+                    "type": "boolean",
+                    "description": "whether or not to do variant calling"
+                },
+                "vc_variant_frequency_cut_off": {
+                    "type": "number",
+                    "default": 0.0099,
+                    "description": "the frequency (from 0 to 1) to consider a variant"
+                },
+                "vc_variant_occurrence_cut_off": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "the absolute count cut off to consider a variant"
+                },
+                "vc_no_pairwise_comps": {
+                    "type": "boolean",
+                    "description": "whether or not to not do pairwise comps when doing variant calling"
+                },
+                "vc_primary_genome": {
+                    "type": "boolean",
+                    "description": "when doing variant calling, the genome to call against"
+                },
+                "known_amino_acid_changes_fnp": {
+                    "type": "string",
+                    "default": "/Users/nick/Documents/sourceCodes/nickjhathaway-elucidatornf/etc/EMPTY_FILE.txt",
+                    "description": "a file of known amino acid changes"
+                },
+                "vc_extra_args": {
+                    "type": "string",
+                    "description": "extra arguments to give to variant calling"
+                }
+            }
+        },
+        "computing_resources": {
+            "title": "Computing Resources",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "max_time": {
+                    "type": "string",
+                    "default": "4h",
+                    "description": "the max amount of time to use per a job"
+                },
+                "resources": {
+                    "type": "string",
+                    "default": "[max_memory:'63 GB', max_memory_int:'63', max_memory_adjusted:false, max_cpus:15, max_cpus_adjusted:false, max_cpus_75:11, max_cpus_50:8, max_cpus_1:1]",
+                    "description": "a dictionary of resource auto-determined per available"
+                },
+                "max_memory": {
+                    "type": "string",
+                    "default": "63 GB",
+                    "description": "the max memory to use per job"
+                },
+                "max_retry": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "the max number of retries per job"
+                },
+                "max_concurrent_tasks": {
+                    "type": "integer",
+                    "default": 15,
+                    "description": "the maximum number of concurrent jobs to run"
+                },
+                "max_cpus": {
+                    "type": "integer",
+                    "default": 15,
+                    "description": "the maximum number of cpus per job"
+                }
+            }
+        },
+        "amplicon_clustering": {
+            "title": "Amplicon Clustering",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "input_fastq_dir": {
+                    "type": "string",
+                    "description": "a directory of fastq files for amplicon clustering"
+                },
+                "primers_fnp": {
+                    "type": "string",
+                    "description": "A 3 column table, target,fwd_primer, rev_primer"
+                },
+                "genome_dir": {
+                    "type": "string",
+                    "description": "A directory of genome fasta files"
+                },
+                "gff_dir": {
+                    "type": "string",
+                    "description": "A directory of annotation gff files"
+                }
+            }
         }
     },
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
         },
-
         {
             "$ref": "#/$defs/institutional_config_options"
         },
         {
             "$ref": "#/$defs/generic_options"
+        },
+        {
+            "$ref": "#/$defs/pathweaver_regions"
+        },
+        {
+            "$ref": "#/$defs/nanopore_clustering"
+        },
+        {
+            "$ref": "#/$defs/variant_calling"
+        },
+        {
+            "$ref": "#/$defs/computing_resources"
+        },
+        {
+            "$ref": "#/$defs/amplicon_clustering"
         }
-    ]
+    ],
+    "properties": {
+        "empty_file_fnp": {
+            "type": "string",
+            "default": "/Users/nick/Documents/sourceCodes/nickjhathaway-elucidatornf/etc/EMPTY_FILE.txt",
+            "description": "An empty file to be used as a default for file options"
+        },
+        "genome_fnp": {
+            "type": "string",
+            "description": "A fasta file of a genome"
+        },
+        "meta_fnp": {
+            "type": "string",
+            "default": "/Users/nick/Documents/sourceCodes/nickjhathaway-elucidatornf/etc/EMPTY_FILE.txt",
+            "description": "Sample meta data, 1 column should be named sample, the rest are meta data"
+        },
+        "meta_fields_to_calc_pop_diffs": {
+            "type": "string",
+            "description": "When supplying meta data, use these field when doing population differentiation calculations"
+        }
+    },
+    "required": ["genome_fnp"]
 }
