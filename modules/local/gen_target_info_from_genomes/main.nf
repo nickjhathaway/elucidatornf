@@ -91,6 +91,7 @@ process GEN_TARGET_INFO_FROM_GENOME_NANOPORE {
     path "primers.tsv", emit: primers
     path "genome_extraction/locationsByGenome/${primary_genome}.bed", emit: amplicon_bed
     path "genome_extraction/locationsByGenome/${primary_genome}_inner.bed", emit: inner_bed
+    path "genome_extraction/locationsByGenome/${primary_genome}_primersLocs.bed", emit: primers_bed
 
     script:
     if (file("${pub_dir}/genome_extraction/forSeekDeep").exists() && file("${primers_fnp}").lastModified() < file("${pub_dir}/genome_extraction/forSeekDeep").lastModified()){

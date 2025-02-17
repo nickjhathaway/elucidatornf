@@ -23,6 +23,7 @@ include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE } from '../../../modules/local/g
 include { GEN_TARGET_INFO_FROM_GENOME_NANOPORE as GEN_TARGET_INFO_FROM_GENOME } from '../../../modules/local/gen_target_info_from_genomes/main.nf'
 include { DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE } from '../../../modules/local/determine_genomic_location_from_seqs_table/main.nf'
 include { GET_INTERSECTING_GENE_INFO_FOR_REGIONS } from '../../../modules/local/get_intersecting_gene_info_for_regions/main.nf'
+include { GET_INTERSECTING_GENE_INFO_FOR_REGIONS as GET_INTERSECTING_GENE_INFO_FOR_REGIONS_INCLUDE_PRIMERS} from '../../../modules/local/get_intersecting_gene_info_for_regions/main.nf'
 include { GET_INTERSECTING_GENE_INFO_FOR_REGIONS as GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS } from '../../../modules/local/get_intersecting_gene_info_for_regions/main.nf'
 
 include { GET_GENE_RECORDS_FOR_GENE_IDS } from '../../../modules/local/get_gene_records_for_gene_ids/main.nf'
@@ -31,6 +32,7 @@ include { PW_CREATE_DASHBOARDS } from '../../../modules/local/pw_create_dashboar
 include { PW_CREATE_DASHBOARDS as PW_CREATE_DASHBOARDS_SUBREGIONS } from '../../../modules/local/pw_create_dashboards/main.nf'
 include { PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER } from "./pathweaver_extract_regions_and_pop_cluster.nf"
 include { PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER as PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS } from "./pathweaver_extract_regions_and_pop_cluster.nf"
+include { PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED } from './pathweaver_extract_regions_and_pop_cluster.nf'
 
 
 
@@ -91,7 +93,6 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
         GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir)
 
         PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
-
         if (params.do_variant_calling){
             //copy over dashboard quarto document
             PW_CREATE_DASHBOARDS_SUBREGIONS(sub_var_results_dir,
@@ -103,20 +104,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
             )
         }
     }
-
-
-
-    workflow.onComplete {
-        def outputDir = file("${results_dir}/run")
-        if (!outputDir.exists()) {
-            outputDir.mkdirs()
-        }
-        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_params()
-        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_runtime()
-    }
 }
-
-
 
 workflow EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES {
     take:
@@ -188,6 +176,15 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL {
     REMOVE_TANDEM_REPEATS_FROM_REGIONS(GET_GENE_RECORDS_FOR_GENE_IDS.out.out_allTranscripts_bed, genome_twobit_fnp)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, GET_GENE_RECORDS_FOR_GENE_IDS.out.out_allTranscripts_bed, genome_fnp, results_dir, meta_fnp)
+
+    workflow.onComplete {
+        def outputDir = file("${results_dir}/run")
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_params()
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_runtime()
+    }
 }
 
 workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
@@ -209,6 +206,14 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
     DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE(file(seqs_table_fnp), file(genome_fnp), seqs_table_seqs_col, seqs_table_name_col, seqs_table_target_col, params.resources.max_cpus, seqsInfoDir)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE.out.targets_bed, genome_fnp, results_dir, meta_fnp)
+    workflow.onComplete {
+        def outputDir = file("${results_dir}/run")
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_params()
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_runtime()
+    }
 }
 
 workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
@@ -230,7 +235,79 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     primerInfoDir.mkdirs()
     GEN_TARGET_INFO_FROM_GENOME(primers_fnp, primerInfoDir, genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.resources.max_cpus)
 
-    PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, GEN_TARGET_INFO_FROM_GENOME.out.inner_bed, genome_fnp, results_dir, meta_fnp)
+
+    top_genome_info = file("${genome_fnp}").getParent().getParent()
+    genome_dir_info = file("${genome_fnp}").getParent()
+    genome_base_name = file("${genome_fnp}").getBaseName()
+    genome_twobit_fnp = file("${genome_dir_info}/${genome_base_name}.2bit")
+    gff_fnp = file("${top_genome_info}/info/gff/${genome_base_name}.gff")
+    known_amino_acid_changes_fnp = params.empty_file_fnp
+    if(file("${top_genome_info}/info/drug_resistant_aaPositions.tsv").exists()){
+        known_amino_acid_changes_fnp = file("${top_genome_info}/info/drug_resistant_aaPositions.tsv")
+    }
+    full_results_dir = file("${results_dir}/PathWeaverResults")
+    full_results_dir.mkdirs()
+
+    regionsInfoDir = file("${results_dir}/regions/")
+    regionsInfoDir.mkdirs()
+    regionsWithPrimersInfoDir = file("${results_dir}/regionsIncludingPrimers/")
+    regionsWithPrimersInfoDir.mkdirs()
+
+    GET_INTERSECTING_GENE_INFO_FOR_REGIONS(GEN_TARGET_INFO_FROM_GENOME.out.inner_bed, gff_fnp, genome_twobit_fnp, regionsInfoDir)
+    GET_INTERSECTING_GENE_INFO_FOR_REGIONS_INCLUDE_PRIMERS(GEN_TARGET_INFO_FROM_GENOME.out.amplicon_bed, gff_fnp, genome_twobit_fnp, regionsWithPrimersInfoDir)
+
+    PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED(samples_file, bams_dir,
+            GEN_TARGET_INFO_FROM_GENOME.out.amplicon_bed,
+            GEN_TARGET_INFO_FROM_GENOME.out.inner_bed,
+            genome_fnp, full_results_dir, meta_fnp)
+
+    if (params.do_variant_calling){
+        //copy over dashboard quarto document
+        PW_CREATE_DASHBOARDS(file("${results_dir}"),  file("${projectDir}/etc/pw_basic_report.qmd"),
+            params.render_pw_report,
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED.out.trimmed_pop_clustering_res_targets_with_results,
+            GET_INTERSECTING_GENE_INFO_FOR_REGIONS.out.bed_withGeneInfo_tsv,
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED.out.trimmed_variant_calling_reports_dir
+        )
+    }
+
+    if (params.run_sub_segments_determination){
+        sub_var_results_dir = file("${full_results_dir}/subVarRegions/")
+        sub_var_full_results_dir = file("${sub_var_results_dir}/PathWeaverResults/")
+        sub_var_full_results_dir.mkdirs()
+        sub_var_regionsInfoDir = file("${sub_var_results_dir}/regions/")
+        sub_var_regionsInfoDir.mkdirs()
+
+        // extract out regions
+        EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES(
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED.out.trimmed_pop_clustering_res_pop_clustering_dir,
+            PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED.out.trimmed_pop_clustering_res_targets_with_results,
+            GEN_TARGET_INFO_FROM_GENOME.out.inner_bed,
+            genome_fnp,
+            sub_var_results_dir)
+
+        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir)
+
+        PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
+        if (params.do_variant_calling){
+            //copy over dashboard quarto document
+            PW_CREATE_DASHBOARDS_SUBREGIONS(sub_var_results_dir,
+                file("${projectDir}/etc/pw_basic_report.qmd"),
+                params.render_pw_report,
+                PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS.out.pop_clustering_res_targets_with_results,
+                GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS.out.bed_withGeneInfo_tsv,
+                PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS.out.variant_calling_reports_dir
+            )
+        }
+    }
+    workflow.onComplete {
+        def outputDir = file("${results_dir}/run")
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_params()
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_runtime()
+    }
 }
 
 workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
@@ -247,6 +324,14 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
     bed_fnp_ch = Channel.fromPath(input_bed_fnp)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, bed_fnp_ch, genome_fnp, results_dir, meta_fnp)
+    workflow.onComplete {
+        def outputDir = file("${results_dir}/run")
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_params()
+        record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_runtime()
+    }
 }
 
 def record_PATHWEAVER_EXTRACT_REGIONS_WITH_BED_params() {
