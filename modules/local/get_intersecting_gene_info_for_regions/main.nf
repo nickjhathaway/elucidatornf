@@ -20,7 +20,7 @@ process GET_INTERSECTING_GENE_INFO_FOR_REGIONS {
     cut -f1-6 ${bed_fnp} | elucidator bedGetIntersectingGenesInGff --extraAttributes description,Name --gff ${gff_fnp} --overWrite --bed STDIN --out bed_withGeneInfo.bed
     elucidator splitColumnContainingMeta --column col.6 --delim tab --removeEmptyColumn --addHeader --replacementHeader "#chrom,start,end,name,length,strand" --overWrite  --file bed_withGeneInfo.bed --out bed_withGeneInfo.tsv
 
-    cut -f1-6 ${bed_fnp} | elucidator bedGetOverlappingAminoAcidPositions  --bed STDIN --gff /tank/data/genomes/plasmodium/genomes/pf/info/gff/Pf3D7.gff --genomeTwoBit /tank/data/genomes/plasmodium/genomes/pf/genomes/Pf3D7.2bit --extraAttributes Name,description --out bed_withGeneAAInfo.bed
+    cut -f1-6 ${bed_fnp} | elucidator bedGetOverlappingAminoAcidPositions  --bed STDIN --gff ${gff_fnp} --genomeTwoBit ${genome_twobit_fnp} --extraAttributes Name,description --out bed_withGeneAAInfo.bed
 
     """
 }

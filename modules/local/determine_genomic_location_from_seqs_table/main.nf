@@ -42,7 +42,7 @@ process DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE {
     rm -f bedFnps.txt
     for x in `elucidator printCol --file allSelectedClustersInfo.tab.txt.gz --delim tab --header --columnName ${target_col_name} --unique --sort`; do
         echo elucidator determineRegionLastz --fasta \${x}.fasta.gz \
-                --genome /tank/data/genomes/plasmodium/genomes/pf/genomes/Pf3D7.fasta \
+                --genome ${genome_fnp} \
                 --out  \${x}.bed\
                 --name \${x} \
                 --keepBestOnly \

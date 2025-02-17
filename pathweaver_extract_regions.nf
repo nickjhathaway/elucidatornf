@@ -13,8 +13,8 @@ workflow {
 
 main:
     // Validate inputs
-    if (params.bams_dir == null  || params.genome_fnp == null || params.pw_results_dir == null) {
-        error "flags '--bams_dir', '--genome_fnp', and '--pw_results_dir' must be specified!"
+    if (params.bams_dir == null  || params.genome_fnp == null || params.outdir == null) {
+        error "flags '--bams_dir', '--genome_fnp', and '--outdir' must be specified!"
     }
 
     sample_file = params.pw_samples_file
@@ -23,7 +23,7 @@ main:
     }
 
     // Create output directory if not exists and overwrite if it does
-    def results_dir_obj = file(params.pw_results_dir)
+    def results_dir_obj = file(params.outdir)
     if (results_dir_obj.exists()){
         results_dir_obj.deleteDir()
     }
@@ -32,11 +32,11 @@ main:
         error "at least one of the following flags '--primers_fnp' , '--pw_seqs_table', '--pw_gene_ids' or '--pw_bed_fnp' must be specified!"
     }
     if( params.primers_fnp != null){
-        PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL(sample_file, params.bams_dir, params.primers_fnp, params.genome_fnp, params.pw_results_dir, params.meta_fnp)
+        PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL(sample_file, params.bams_dir, params.primers_fnp, params.genome_fnp, params.outdir, params.meta_fnp)
     } else if (params.pw_bed_fnp != null){
-        PATHWEAVER_EXTRACT_REGIONS_FULL(sample_file, params.bams_dir, params.pw_bed_fnp, params.genome_fnp, params.pw_results_dir, params.meta_fnp)
+        PATHWEAVER_EXTRACT_REGIONS_FULL(sample_file, params.bams_dir, params.pw_bed_fnp, params.genome_fnp, params.outdir, params.meta_fnp)
     } else if (params.pw_gene_ids != null){
-        PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL(sample_file, params.bams_dir, params.pw_gene_ids, params.genome_fnp, params.pw_results_dir, params.meta_fnp)
+        PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL(sample_file, params.bams_dir, params.pw_gene_ids, params.genome_fnp, params.outdir, params.meta_fnp)
     } else if (params.pw_seqs_table != null){
         if (params.pw_seqs_table_seqs_col == null  || params.pw_seqs_table_name_col == null || params.pw_seqs_table_target_col == null) {
             error "flags '--pw_seqs_table_seqs_col', '--pw_seqs_table_name_col', and '--pw_seqs_table_target_col' must be specified if supplying '--pw_seqs_table'!"
@@ -49,7 +49,7 @@ main:
             params.pw_seqs_table_name_col,
             params.pw_seqs_table_target_col,
             params.genome_fnp,
-            params.pw_results_dir,
+            params.outdir,
             params.meta_fnp)
     }
 }

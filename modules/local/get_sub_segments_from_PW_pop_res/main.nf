@@ -2,7 +2,6 @@ process GET_SUB_SEGMENTS_FROM_FASTA {
     label 'process_low'
 
     def output_dir = "subSegments"
-    // publishDir "${params.pw_results_dir}", mode: 'copy', overwrite: true, pattern: "${sample}_${dirstub}"
 
     input:
     tuple path(per_sample_seqs), path (bedfile_fnp), path(genome_dir_fnp), val(primary_genome), val (region_id), val (correction_occurence_cut_off), val (low_freq_cut_off)
