@@ -1,11 +1,14 @@
 process GET_GENE_RECORDS_FOR_GENE_IDS {
-    label 'process_single'
 
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "infos"
+
+    label 'process_single'
 
     input:
     path ids_fnp
     path genome_twobit_fnp
     path gff_fnp
+    val pub_dir
 
     output:
     path "infos", emit: infos

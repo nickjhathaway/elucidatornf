@@ -171,11 +171,13 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL {
     genome_twobit_fnp = file("${genome_dir_info}/${genome_base_name}.2bit")
     gff_fnp = file("${top_genome_info}/info/gff/${genome_base_name}.gff")
 
+    gene_infos_dir = file("${results_dir}/geneInfos/")
+    gene_infos_dir.mkdirs()
 
-    GET_GENE_RECORDS_FOR_GENE_IDS(file(gene_ids_fnp), genome_twobit_fnp, gff_fnp)
+    GET_GENE_RECORDS_FOR_GENE_IDS(file(gene_ids_fnp), genome_twobit_fnp, gff_fnp, gene_infos_dir)
     REMOVE_TANDEM_REPEATS_FROM_REGIONS(GET_GENE_RECORDS_FOR_GENE_IDS.out.out_allTranscripts_bed, genome_twobit_fnp)
 
-    PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, GET_GENE_RECORDS_FOR_GENE_IDS.out.out_allTranscripts_bed, genome_fnp, results_dir, meta_fnp)
+    PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, REMOVE_TANDEM_REPEATS_FROM_REGIONS.out.out_with_tandems_removed, genome_fnp, results_dir, meta_fnp)
 
     workflow.onComplete {
         def outputDir = file("${results_dir}/run")
@@ -203,7 +205,11 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
 
     seqsInfoDir = file("${results_dir}/seqsTableLocationInfo/")
     seqsInfoDir.mkdirs()
-    DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE(file(seqs_table_fnp), file(genome_fnp), seqs_table_seqs_col, seqs_table_name_col, seqs_table_target_col, params.resources.max_cpus, seqsInfoDir)
+    genome_dir_info = file("${genome_fnp}").getParent()
+    DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE(
+        file(seqs_table_fnp), file(genome_dir_info), file("${genome_fnp}").name,
+            seqs_table_seqs_col, seqs_table_name_col, seqs_table_target_col,
+            params.resources.max_cpus, seqsInfoDir)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE.out.targets_bed, genome_fnp, results_dir, meta_fnp)
     workflow.onComplete {

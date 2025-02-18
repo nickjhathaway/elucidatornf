@@ -9,7 +9,8 @@ process DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE {
 
     input:
     path seq_table
-    path genome_fnp
+    path genome_dir
+    val genome_fname
     val seq_col_name
     val name_col_name
     val target_col_name
@@ -25,7 +26,7 @@ process DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE {
 
     """
     elucidator tableExtractColumns \
-            --file allSelectedClustersInfo.tab.txt.gz \
+            --file $seq_table \
             --delim tab --header \
             --columns ${target_col_name},${name_col_name},${seq_col_name} \
             --getUniqueRows | elucidator createSeqsFromTable \
@@ -40,9 +41,9 @@ process DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE {
     rm -f indvidualBedFnps.txt
     rm -f determineRegionCmds.txt
     rm -f bedFnps.txt
-    for x in `elucidator printCol --file allSelectedClustersInfo.tab.txt.gz --delim tab --header --columnName ${target_col_name} --unique --sort`; do
+    for x in `elucidator printCol --file $seq_table --delim tab --header --columnName ${target_col_name} --unique --sort`; do
         echo elucidator determineRegionLastz --fasta \${x}.fasta.gz \
-                --genome ${genome_fnp} \
+                --genome ${genome_dir}/${genome_fname} \
                 --out  \${x}.bed\
                 --name \${x} \
                 --keepBestOnly \
