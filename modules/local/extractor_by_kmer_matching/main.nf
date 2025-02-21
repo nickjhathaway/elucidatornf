@@ -19,6 +19,8 @@ process EXTRACTOR_BY_KMER_MATCHING {
     path "${sample_name}_extractionStats.tab.txt", emit: extraction_stats
 
     script:
+    def extra_args = task.ext.args ? task.ext.args : ''
+
     """
     SeekDeep extractorByKmerMatching \
             --dout extraction \
@@ -28,7 +30,8 @@ process EXTRACTOR_BY_KMER_MATCHING {
             --id ${primers_fnp} \
             --sampleName ${sample_name} \
             --lenCutOffs ${length_cut_offs_per_target} \
-            --minLenCutOff ${min_len_cut_off}
+            --minLenCutOff ${min_len_cut_off}\
+            ${extra_args}
     ln -s extraction/extractionProfile.tab.txt ${sample_name}_extractionProfile.tab.txt
     ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt
 
