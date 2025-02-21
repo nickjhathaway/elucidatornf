@@ -13,7 +13,8 @@ process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
     output:
     path "outSeekDeepExtractorFlags.txt", emit: out_seekdeep_extractor_flags
     script:
-    
+    def extra_args = task.ext.args ? task.ext.args : ''
+
     """
     SeekDeep gatherInfoOnTargetedAmpliconSeqFile \
             --id ${primers_fnp} \
@@ -21,9 +22,8 @@ process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
             --dout info_dir \
             --technology ${tehcnology} \
             --numThreads ${ncpus}
-            --overWriteDir
+            --overWriteDir\
+            ${extra_args}
     ln -s info_dir/outSeekDeepExtractorFlags.txt outSeekDeepExtractorFlags.txt
     """
 }
-            //--testNumber 5000 \
-            //--numberOfFilesToInvestigate 5
