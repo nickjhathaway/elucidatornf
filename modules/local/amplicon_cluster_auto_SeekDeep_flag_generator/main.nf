@@ -12,6 +12,7 @@ process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
 
     output:
     path "outSeekDeepExtractorFlags.txt", emit: out_seekdeep_extractor_flags
+
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
 
@@ -21,7 +22,7 @@ process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
             --reads_dir ${fastq_dir_fnp} \
             --dout info_dir \
             --technology ${tehcnology} \
-            --numThreads ${ncpus}
+            --numThreads ${ncpus}\
             --overWriteDir\
             ${extra_args}
     ln -s info_dir/outSeekDeepExtractorFlags.txt outSeekDeepExtractorFlags.txt

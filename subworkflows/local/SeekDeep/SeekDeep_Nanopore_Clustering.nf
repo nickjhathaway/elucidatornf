@@ -12,7 +12,7 @@ include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amp
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
 include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/gen_target_info_from_genomes/main.nf'
-
+include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 
 workflow NANOPORE_AMPLICON_CLUSTERING {
     take:
@@ -35,14 +35,18 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
 
     def fastq_input_ch = Channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
 
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp, "nanopore", params.resources.max_cpus)
+
     def input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
-            .map{fastq_fnp, info_dir ->
+            .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
+            .map{fastq_fnp, info_dir, auto_flags_fnp ->
                 tuple(
                     fastq_fnp,
                     file(fastq_fnp).name.replaceAll(".fastq.gz", ""),
                     primers_fnp,
                     file("${info_dir}/allKmers.tab.txt.gz"),
                     file("${info_dir}/lenCutOffs.txt"),
+                    auto_flags_fnp,
                     params.nanopore_clustering_min_len
                 )
             }
