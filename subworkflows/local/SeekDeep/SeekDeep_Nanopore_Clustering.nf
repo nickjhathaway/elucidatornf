@@ -4,6 +4,7 @@ nextflow.enable.dsl = 2
 // include { paramsSummaryMap       } from 'plugin/nf-schema'
 
 
+include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE as GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL } from '../../../modules/local/gen_target_info_from_genomes'
 include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE } from '../../../modules/local/gen_target_info_from_genomes'
 include { EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/extractor_by_kmer_matching'
 include { VARIANT_CALL_ON_HAP_TABLE } from '../../../modules/local/variant_call_on_hap_table/main.nf'
@@ -27,17 +28,27 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
 
     def primer_info_dir = file("${output_dir}/primerInfo")
     primer_info_dir.mkdirs()
+
     def extraction_reports_dir = file("${output_dir}/extractionReports")
     extraction_reports_dir.mkdirs()
     def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
-    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
 
-    def fastq_input_ch = Channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
+    primers_fnp_ch = primers_fnp
 
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp, "nanopore", params.resources.max_cpus)
+    if (params.nanopore_extractor_use_inner_primers){
+        def initial_primer_info_dir = file("${output_dir}/primerInfo/initialPrimerInfo")
+        initial_primer_info_dir.mkdirs()
+        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
+        primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
+    }
+    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
 
-    def input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.resources.max_cpus, extraction_reports_dir)
+
+    fastq_input_ch = Channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
+
+    input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
             .map{fastq_fnp, info_dir, auto_flags_fnp ->
                 tuple(
@@ -67,7 +78,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     //     .map{samp ->
     //         samp.trim() // Remove any whitespace
     //         }
-    def targets = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.targets_with_extractins
+    def targets = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.targets_with_extractions
         .splitText()
         .map{samp ->
             samp.trim() // Remove any whitespace

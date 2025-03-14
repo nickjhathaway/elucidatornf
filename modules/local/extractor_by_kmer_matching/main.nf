@@ -6,7 +6,7 @@ process EXTRACTOR_BY_KMER_MATCHING {
     tuple path(fastq_fnp), val(sample_name), path(primers_fnp), path(kmers_sets), path(length_cut_offs_per_target), path(auto_flags_fnp), val (min_len_cut_off)
 
     output:
-    tuple val(sample_name), path("extraction/*.fastq.gz"), emit: fastqs_per_target
+    tuple val(sample_name), path("extraction/*.fastq.gz"), emit: fastqs_per_target, optional : true
     tuple val(sample_name), path("extraction/"), emit: sample_dir
 
     path "${sample_name}_extractionProfile.tab.txt", emit: extraction_profile_per_target

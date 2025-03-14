@@ -1,13 +1,16 @@
 process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
     label 'process_low'
 
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true
+
     cpus   { ncpus }
 
     input:
     path fastq_dir_fnp
     path primers_fnp
-    val tehcnology
+    val technology
     val ncpus
+    val pub_dir
 
 
     output:
@@ -21,7 +24,7 @@ process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
             --id ${primers_fnp} \
             --reads_dir ${fastq_dir_fnp} \
             --dout info_dir \
-            --technology ${tehcnology} \
+            --technology ${technology} \
             --numThreads ${ncpus}\
             --overWriteDir\
             ${extra_args}

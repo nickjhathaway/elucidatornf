@@ -6,7 +6,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractins.txt"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "primers.tsv"
 
 
@@ -23,42 +23,36 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
     path "genome_extraction/forSeekDeep", emit: for_seek_deep_info
     path "genome_extraction/locationsByGenome", emit: locations_by_genome
     path "genome_extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
-    path "targets_with_extractins.txt", emit: targets_with_extractins
+    path "targets_with_extractions.txt", emit: targets_with_extractions
     path "primers.tsv", emit: primers
+    path "inner_primers.tsv", emit: inner_primers
 
     script:
-    if (file("${pub_dir}/genome_extraction/forSeekDeep").exists() && file("${primers_fnp}").lastModified() < file("${pub_dir}/genome_extraction/forSeekDeep").lastModified()){
-        """
-        mkdir genome_extraction
-        cp -r "${pub_dir}/genome_extraction/forSeekDeep" genome_extraction/
-        cp -r "${pub_dir}/genome_extraction/locationsByGenome" genome_extraction/
-        cp "${pub_dir}/genome_extraction/allExtractionCounts.tab.txt" genome_extraction/
-        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt --delim tab --columnName extractionCounts --header --cutOff 0 | elucidator printCol --file STDIN --delim tab --header --columnName target --sort --unique  > targets_with_extractins.txt
-        """
-    } else {
-        """
-        SeekDeep genTargetInfoFromGenomes \
-                --primers ${primers_fnp} \
-                --longRangeAmplicon \
-                --genomeDir ${genome_dir} \
-                --gffDir ${gff_dir} \
-                --dout genome_extraction \
-                --errors ${errors_allowed} \
-                --numThreads ${ncpus} \
-                --useBlast
-        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
-                --delim tab \
-                --columnName extractionCounts \
-                --header \
-                --cutOff 0 | elucidator printCol \
-                                        --file STDIN \
-                                        --delim tab \
-                                        --header \
-                                        --columnName target \
-                                        --sort \
-                                        --unique  > targets_with_extractins.txt
-        """
-    }
+    """
+    SeekDeep genTargetInfoFromGenomes \
+            --primers ${primers_fnp} \
+            --longRangeAmplicon \
+            --genomeDir ${genome_dir} \
+            --gffDir ${gff_dir} \
+            --dout genome_extraction \
+            --errors ${errors_allowed} \
+            --numThreads ${ncpus} \
+            --useBlast
+    elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
+            --delim tab \
+            --columnName extractionCounts \
+            --header \
+            --cutOff 0 | elucidator printCol \
+                                    --file STDIN \
+                                    --delim tab \
+                                    --header \
+                                    --columnName target \
+                                    --sort \
+                                    --unique  > targets_with_extractions.txt
+    for x in genome_extraction/forSeekDeep/refSeqs/*.fasta; do elucidator revCompSeq --fasta \${x} --overWrite; done;
+    for x in genome_extraction/forSeekDeep/refSeqs/*.fasta; do elucidator trimToLen --fasta \${x} --length 25 --overWrite --out genome_extraction/forSeekDeep/refSeqs/trimmed_toFront25_\$(basename \${x}); done;
+    echo -e "target\tforward\treverse" > inner_primers.tsv && for x in `/bin/ls genome_extraction/forSeekDeep/refSeqs/trimmed_toFront25_*.fasta | egrep -v revComp`; do echo -e \$(echo \$(basename \${x%%.fasta}) | sed 's/trimmed_toFront25_//g')"\t"\$(elucidator createDegenerativeStr --fasta \${x})"\t"\$(elucidator createDegenerativeStr --fasta \$(echo \${x} | sed 's/trimmed_toFront25_/trimmed_toFront25_revComp_/g')) >> inner_primers.tsv; done;
+    """
 }
 
 
@@ -70,7 +64,7 @@ process GEN_TARGET_INFO_FROM_GENOME_NANOPORE {
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractins.txt"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "primers.tsv"
 
 
@@ -87,46 +81,36 @@ process GEN_TARGET_INFO_FROM_GENOME_NANOPORE {
     path "genome_extraction/forSeekDeep", emit: for_seek_deep_info
     path "genome_extraction/locationsByGenome", emit: locations_by_genome
     path "genome_extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
-    path "targets_with_extractins.txt", emit: targets_with_extractins
+    path "targets_with_extractions.txt", emit: targets_with_extractions
     path "primers.tsv", emit: primers
     path "genome_extraction/locationsByGenome/${primary_genome}.bed", emit: amplicon_bed
     path "genome_extraction/locationsByGenome/${primary_genome}_inner.bed", emit: inner_bed
     path "genome_extraction/locationsByGenome/${primary_genome}_primersLocs.bed", emit: primers_bed
 
     script:
-    if (file("${pub_dir}/genome_extraction/forSeekDeep").exists() && file("${primers_fnp}").lastModified() < file("${pub_dir}/genome_extraction/forSeekDeep").lastModified()){
-        """
-        mkdir genome_extraction
-        cp -r "${pub_dir}/genome_extraction/forSeekDeep" genome_extraction/
-        cp -r "${pub_dir}/genome_extraction/locationsByGenome" genome_extraction/
-        cp "${pub_dir}/genome_extraction/allExtractionCounts.tab.txt" genome_extraction/
-        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt --delim tab --columnName extractionCounts --header --cutOff 0 | elucidator printCol --file STDIN --delim tab --header --columnName target --sort --unique  > targets_with_extractins.txt
-        """
-    } else {
-        """
-        SeekDeep genTargetInfoFromGenomes \
-                --primers ${primers_fnp} \
-                --longRangeAmplicon \
-                --genomeDir ${genome_dir} \
-                --gffDir ${gff_dir} \
-                --dout genome_extraction \
-                --errors ${errors_allowed} \
-                --numThreads ${ncpus} \
-                --useBlast \
-                --selectedGenomes ${primary_genome}
-        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
-                --delim tab \
-                --columnName extractionCounts \
-                --header \
-                --cutOff 0 | elucidator printCol \
-                                        --file STDIN \
-                                        --delim tab \
-                                        --header \
-                                        --columnName target \
-                                        --sort \
-                                        --unique  > targets_with_extractins.txt
-        """
-    }
+    """
+    SeekDeep genTargetInfoFromGenomes \
+            --primers ${primers_fnp} \
+            --longRangeAmplicon \
+            --genomeDir ${genome_dir} \
+            --gffDir ${gff_dir} \
+            --dout genome_extraction \
+            --errors ${errors_allowed} \
+            --numThreads ${ncpus} \
+            --useBlast \
+            --selectedGenomes ${primary_genome}
+    elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
+            --delim tab \
+            --columnName extractionCounts \
+            --header \
+            --cutOff 0 | elucidator printCol \
+                                    --file STDIN \
+                                    --delim tab \
+                                    --header \
+                                    --columnName target \
+                                    --sort \
+                                    --unique  > targets_with_extractions.txt
+    """
 }
 
 process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
@@ -137,7 +121,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractins.txt"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "${primers_fnp}", saveAs: "primers.tsv"
 
 
@@ -154,18 +138,9 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     path "genome_extraction/forSeekDeep", emit: for_seek_deep_info
     path "genome_extraction/locationsByGenome", emit: locations_by_genome
     path "genome_extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
-    path "targets_with_extractins.txt", emit: targets_with_extractins
+    path "targets_with_extractions.txt", emit: targets_with_extractions
 
     script:
-    if (file("${pub_dir}/genome_extraction/forSeekDeep").exists() && file("${primers_fnp}").lastModified() < file("${pub_dir}/genome_extraction/forSeekDeep").lastModified()){
-        """
-        mkdir genome_extraction
-        cp -r "${pub_dir}/genome_extraction/forSeekDeep" genome_extraction/
-        cp -r "${pub_dir}/genome_extraction/locationsByGenome" genome_extraction/
-        cp "${pub_dir}/genome_extraction/allExtractionCounts.tab.txt" genome_extraction/
-        elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt --delim tab --columnName extractionCounts --header --cutOff 0 | elucidator printCol --file STDIN --delim tab --header --columnName target --sort --unique  > targets_with_extractins.txt
-        """
-    } else {
     """
         SeekDeep genTargetInfoFromGenomes \
                 --primers ${primers_fnp} \
@@ -188,7 +163,6 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
                                     --header \
                                     --columnName target \
                                     --sort \
-                                    --unique  > targets_with_extractins.txt
+                                    --unique  > targets_with_extractions.txt
     """
-    }
 }
