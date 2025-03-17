@@ -12,7 +12,7 @@
 
 ## Introduction
 
-**nickjhathaway/elucidatornf** is a bioinformatics pipeline that ...
+**nickjhathaway/elucidatornf** is a bioinformatics pipeline that runs various amplicon pipelines that are found within SeekDeep, PathWeaver and elucidator
 
 <!-- TODO nf-core:
    Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the
@@ -49,11 +49,32 @@ Now, you can run the pipeline using:
 
 <!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
 
+### nanopore amplicon clustering
+
 ```bash
-nextflow run nickjhathaway/elucidatornf \
-   -profile <docker/singularity/.../institute> \
-   --input samplesheet.csv \
-   --outdir <OUTDIR>
+nextflow run elucidatornf/nanopore_clustering.nf \
+      --input_fastq_dir fastq/ \
+      --primers_fnp primers.tsv \
+      --genome_dir /tank/data/plasmodium/genomes/pf/genomes/ \
+      --gff_dir /tank/data/plasmodium/genomes/pf/info/gff/ \
+      --outdir analysis_nextflow  \
+      --do_variant_calling \
+      --vc_primary_genome Pf3D7\
+      -profile <docker/singularity/apptainer/.../institute>
+```
+
+### PathWeaver targeted assembly
+
+```bash
+nextflow run elucidatornf/pathweaver_extract_regions.nf \
+      --bams_dir /data/pf/bams \
+      --pw_bed_fnp regions.bed \
+      --genome_fnp pf_genomes/genomes/Pf3D7.fasta \
+      --outdir SIMPLseq \
+      --do_variant_calling \
+      --meta_fnp /data/pf/metadata/meta.tab.txt \
+      --render_pw_report
+      -profile <docker/singularity/apptainer/.../institute>
 ```
 
 > [!WARNING]
