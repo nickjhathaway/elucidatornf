@@ -30,7 +30,7 @@ process VARIANT_CALL_ON_HAP_TABLE {
     def getting_pairwise_comps_arg = getting_pairwise_comps ? "--getPairwiseComps" : ""
     def meta_fields_to_calc_pop_diffs_arg = "" == meta_fields_to_calc_pop_diffs ? "" : "--metaFieldsToCalcPopDiffs ${meta_fields_to_calc_pop_diffs}"
     """
-    meta_arg="--groupingsFile ${meta_fnp}"
+    meta_arg="--metaFnp ${meta_fnp}"
     known_amino_acid_changes_arg="--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
     if [ ! -s "\$(readlink -f ${meta_fnp})" ]; then meta_arg=""; fi
     if [ ! -s "\$(readlink -f ${known_amino_acid_changes_fnp})" ]; then known_amino_acid_changes_arg=""; fi

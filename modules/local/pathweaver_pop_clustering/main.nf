@@ -18,6 +18,7 @@ process PATHWEAVER_POP_CLUSTERING {
     path "reports/", emit: pop_clustering_reports_dir
     path "info/", emit: pop_clustering_info_dir
     path "popClustering/reports/targets_with_results.txt", emit: targets_with_results
+    path "output_sampleMetaData.tab.txt", optional: true, emit: output_sample_meta_fnp
 
     script:
     def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--groupingsFile ${meta_fnp}"
@@ -27,6 +28,8 @@ process PATHWEAVER_POP_CLUSTERING {
     elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::sample,p_name::target,h_popUID::allele_name,h_Consensus::seq,c_ReadCnt::read_count --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports
     ln -s popClustering/info
+    if [ -f popClustering/info/sampleMetaData.tab.txt ]; then ln -s popClustering/info/sampleMetaData.tab.txt output_sampleMetaData.tab.txt; fi;
+
     """
 }
 
@@ -52,6 +55,7 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     path "reports/", emit: pop_clustering_reports_dir
     path "info/", emit: pop_clustering_info_dir
     path "popClustering/reports/targets_with_results.txt", emit: targets_with_results
+    path "output_sampleMetaData.tab.txt", optional: true, emit: output_sample_meta_fnp
 
     script:
     def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--groupingsFile ${meta_fnp}"
@@ -61,5 +65,6 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::sample,p_name::target,h_popUID::allele_name,h_Consensus::seq,c_ReadCnt::read_count --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports
     ln -s popClustering/info
+    if [ -f popClustering/info/sampleMetaData.tab.txt ]; then ln -s popClustering/info/sampleMetaData.tab.txt output_sampleMetaData.tab.txt; fi;
     """
 }

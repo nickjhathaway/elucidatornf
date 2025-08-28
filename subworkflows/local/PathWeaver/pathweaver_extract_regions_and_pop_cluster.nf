@@ -78,7 +78,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
         meta_fnp_for_variant_calling_ch = Channel.fromPath(params.meta_fnp)
         if ("EMPTY_FILE.txt" != file(params.meta_fnp).baseName ){
             //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
-            meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+            // meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+            meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.output_sample_meta_fnp
         }
         VARIANT_CALL_ON_HAP_TABLE (
             bed_fnp_ch,
@@ -181,8 +182,10 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
         trimmed_meta_fnp_for_variant_calling_ch =  Channel.fromPath(params.meta_fnp)
         if ("EMPTY_FILE.txt" != file(params.meta_fnp).baseName ){
             //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
-            meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
-            trimmed_meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+            // meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+            // trimmed_meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED.out.pop_clustering_dir.map{file("${it[0]}/info/sampleMetaData.tab.txt")}
+            meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.output_sample_meta_fnp
+            trimmed_meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED.out.output_sample_meta_fnp
         }
         VARIANT_CALL_ON_HAP_TABLE (
             bed_fnp_ch,
