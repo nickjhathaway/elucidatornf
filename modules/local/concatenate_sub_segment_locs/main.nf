@@ -12,6 +12,7 @@ process CONCATENATE_SUB_SEGMENT_LOCS {
     val pub_results_dir
 
     output:
+    path "unfiltered_allVariableExpandedRegions.bed", emit: unfiltered_all_variable_expanded_regions
     path "allVariableExpandedRegions.bed", emit: all_variable_expanded_regions
     path "allVariableRegions.bed", emit: all_variable_regions
     path "allConservedRegions.bed", emit: all_conserved_regions
@@ -23,10 +24,11 @@ process CONCATENATE_SUB_SEGMENT_LOCS {
     elucidator rBind --contains _0_ref_variable_genomic.bed --delim tab | elucidator bedCoordSort --bed STDIN --out raw_allVariableRegions.bed
     elucidator rBind --contains _0_ref_sharedLocs_genomic.bed --delim tab | elucidator bedCoordSort --bed STDIN --out raw_allConservedRegions.bed
 
-    elucidator bedGetIntersectingGenesInGff --gff ${gff_fnp} --extraAttributes description --overWrite --bed raw_allVariableExpandedRegions.bed --out allVariableExpandedRegions.bed
+    elucidator bedGetIntersectingGenesInGff --gff ${gff_fnp} --extraAttributes description --overWrite --bed raw_allVariableExpandedRegions.bed --out unfiltered_allVariableExpandedRegions.bed
     elucidator bedGetIntersectingGenesInGff --gff ${gff_fnp} --extraAttributes description --overWrite --bed raw_allVariableRegions.bed --out allVariableRegions.bed
     elucidator bedGetIntersectingGenesInGff --gff ${gff_fnp} --extraAttributes description --overWrite --bed raw_allConservedRegions.bed --out allConservedRegions.bed
 
+    elucidator bedFilterRegionsCompletelyInOther  --bed unfiltered_allVariableExpandedRegions.bed --intersectWithBed unfiltered_allVariableExpandedRegions.bed --overWrite --out allVariableExpandedRegions.bed
     cat allVariableRegions.bed allConservedRegions.bed  | elucidator bedCoordSort --bed STDIN --out  combinedSubRegions.bed
     """
 }
