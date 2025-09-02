@@ -76,8 +76,6 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     if (params.do_variant_calling){
         variant_call_dir = file("${results_dir}/variantCalls")
         meta_fnp_for_variant_calling_ch = Channel.fromPath(params.meta_fnp)
-        log.info(file(params.meta_fnp).baseName)
-        log.info(file(params.meta_fnp).name)
         if ("EMPTY_FILE.txt" != file(params.meta_fnp).name ){
             //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
             meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it}/info/sampleMetaData.tab.txt")}
