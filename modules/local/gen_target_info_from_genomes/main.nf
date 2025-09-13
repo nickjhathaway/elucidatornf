@@ -51,7 +51,8 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
                                     --unique  > targets_with_extractions.txt
     for x in genome_extraction/forSeekDeep/refSeqs/*.fasta; do elucidator revCompSeq --fasta \${x} --overWrite; done;
     for x in genome_extraction/forSeekDeep/refSeqs/*.fasta; do elucidator trimToLen --fasta \${x} --length 25 --overWrite --out genome_extraction/forSeekDeep/refSeqs/trimmed_toFront25_\$(basename \${x}); done;
-    echo -e "target\tforward\treverse" > inner_primers.tsv && for x in `/bin/ls genome_extraction/forSeekDeep/refSeqs/trimmed_toFront25_*.fasta | egrep -v revComp`; do echo -e \$(echo \$(basename \${x%%.fasta}) | sed 's/trimmed_toFront25_//g')"\t"\$(elucidator createDegenerativeStr --fasta \${x})"\t"\$(elucidator createDegenerativeStr --fasta \$(echo \${x} | sed 's/trimmed_toFront25_/trimmed_toFront25_revComp_/g')) >> inner_primers.tsv; done;
+    #echo -e "target\tforward\treverse" > inner_primers.tsv && for x in `/bin/ls genome_extraction/forSeekDeep/refSeqs/trimmed_toFront25_*.fasta | egrep -v revComp`; do echo -e \$(echo \$(basename \${x%%.fasta}) | sed 's/trimmed_toFront25_//g')"\t"\$(elucidator createDegenerativeStr --fasta \${x})"\t"\$(elucidator createDegenerativeStr --fasta \$(echo \${x} | sed 's/trimmed_toFront25_/trimmed_toFront25_revComp_/g')) >> inner_primers.tsv; done;
+    echo -e "target\tforward\treverse" > inner_primers.tsv && for x in `/bin/ls genome_extraction/forSeekDeep/refSeqs/trimmed_toFront25_*.fasta | egrep -v revComp`; do echo -e \$(echo \$(basename \${x%%.fasta}) | sed 's/trimmed_toFront25_//g')"\t"\$(elucidator printSeqs --fasta \${x} | tr '\n' ',' | sed 's/,$//g')"\t"\$(elucidator printSeqs --fasta \$(echo \${x} | sed 's/trimmed_toFront25_/trimmed_toFront25_revComp_/g') | tr '\n' ',' | sed 's/,$//g') >> inner_primers.tsv; done;
     """
 }
 
