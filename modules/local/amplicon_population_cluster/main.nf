@@ -11,6 +11,7 @@ process AMPLICON_POPULATION_CLUSTERING {
     path "${target_name}_selectedClustersInfo.tab.txt.gz", emit: clustering_results
 
     script:
+    def extra_args = task.ext.args ? task.ext.args : ''
 
     """
     meta_arg="--groupingsFile ${meta_fnp}"
@@ -23,16 +24,13 @@ process AMPLICON_POPULATION_CLUSTERING {
             --dout analysis \
             --fastqgz output.fastq.gz \
             --allowHomopolymerCollapse \
-            --removeOneSampOnlyOneOffHaps \
-            --excludeCommonlyLowFreqHaplotypes \
-            --excludeLowFreqOneOffs \
-            --rescueExcludedOneOffLowFreqHaplotypes \
             --replicateMinTotalReadCutOff ${sample_min_read_count} \
             \${meta_arg} \
             --experimentName ${target_name} \
             --numThreads ${ncpus}\
             --previousPop-largeBaseIndel 0.99 --previousPop-oneBaseIndel 0.99 --previousPop-twoBaseIndel 0.99 \
-            \${previous_pop_arg}
+            \${previous_pop_arg}\
+            ${extra_args}
     ln -s analysis/selectedClustersInfo.tab.txt.gz ${target_name}_selectedClustersInfo.tab.txt.gz
     """
 }
