@@ -38,12 +38,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     reports_dir.mkdirs()
     // Load samples from file and create a channel
     if ("EMPTY_FILE.txt" == file("${samples_file}").name){
-        samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
+        samples = channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
             .map{ samp_file ->
                 file(samp_file).name.replaceAll("${params.bams_file_ending}", "")
         }
     } else {
-        samples = Channel
+        samples = channel
             .fromPath("${samples_file}")
             .splitText()
             .map{samp ->
@@ -73,9 +73,11 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     // run population clustering
     PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, pop_clus_dir.toString())
 
+    channel.empty().set { variant_calling_reports_dir }
+
     if (params.do_variant_calling){
         variant_call_dir = file("${results_dir}/variantCalls")
-        meta_fnp_for_variant_calling_ch = Channel.fromPath(params.meta_fnp)
+        meta_fnp_for_variant_calling_ch = channel.fromPath(params.meta_fnp)
         if ("EMPTY_FILE.txt" != file(params.meta_fnp).name ){
             //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
             meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it}/info/sampleMetaData.tab.txt")}
@@ -96,6 +98,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
             file(variant_call_dir),
             params.vc_extra_args
         )
+        // only set this when the module actually runs
+        variant_calling_reports_dir = VARIANT_CALL_ON_HAP_TABLE.out.reports
     }
     emit:
     samples = samples
@@ -103,8 +107,9 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     pop_clustering_res_pop_clustering_dir = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir
     pop_clustering_res_all_selected_clusters_info = PATHWEAVER_POP_CLUSTERING.out.all_selected_clusters_info
     pop_clustering_res_targets_with_results = PATHWEAVER_POP_CLUSTERING.out.targets_with_results
-    variant_calling_reports_dir = VARIANT_CALL_ON_HAP_TABLE.out.reports
+    variant_calling_reports_dir = variant_calling_reports_dir
 }
+
 workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     take:
     samples_file  // Path to the list of sample names (one per line)
@@ -137,12 +142,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     reports_dir.mkdirs()
     // Load samples from file and create a channel
     if ("EMPTY_FILE.txt" == file("${samples_file}").name){
-        samples = Channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
+        samples = channel.fromPath("${bams_dir}/*${params.bams_file_ending}")
             .map{ samp_file ->
                 file(samp_file).name.replaceAll("${params.bams_file_ending}", "")
         }
     } else {
-        samples = Channel
+        samples = channel
             .fromPath("${samples_file}")
             .splitText()
             .map{samp ->
@@ -174,12 +179,13 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     //run with inner trimmed region
     PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, trimmed_pop_clus_dir.toString(),
                                             trim_bed_fnp_ch, genome_twobit_fnp)
-
+    channel.empty().set { variant_calling_reports_dir }
+    channel.empty().set { trimmed_variant_calling_reports_dir }
     if (params.do_variant_calling){
         variant_call_dir = file("${results_dir}/reports/full/variantCalls")
         trimmed_variant_call_dir = file("${results_dir}/variantCalls")
-        meta_fnp_for_variant_calling_ch = Channel.fromPath(params.meta_fnp)
-        trimmed_meta_fnp_for_variant_calling_ch =  Channel.fromPath(params.meta_fnp)
+        meta_fnp_for_variant_calling_ch = channel.fromPath(params.meta_fnp)
+        trimmed_meta_fnp_for_variant_calling_ch =  channel.fromPath(params.meta_fnp)
         if ("EMPTY_FILE.txt" != file(params.meta_fnp).name ){
             //meta data was supplied, should use the meta data from the population clustering because it will sometimes filter and collapse samples
             meta_fnp_for_variant_calling_ch = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir.map{file("${it}/info/sampleMetaData.tab.txt")}
@@ -215,6 +221,9 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
             file(trimmed_variant_call_dir),
             params.vc_extra_args
         )
+        // rebind emits only when present
+        variant_calling_reports_dir         = VARIANT_CALL_ON_HAP_TABLE.out.reports
+        trimmed_variant_calling_reports_dir = VARIANT_CALL_ON_HAP_TABLE_ON_TRIMMED.out.reports
     }
     emit:
     samples = samples
@@ -222,10 +231,10 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     pop_clustering_res_pop_clustering_dir = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir
     pop_clustering_res_all_selected_clusters_info = PATHWEAVER_POP_CLUSTERING.out.all_selected_clusters_info
     pop_clustering_res_targets_with_results = PATHWEAVER_POP_CLUSTERING.out.targets_with_results
-    variant_calling_reports_dir = VARIANT_CALL_ON_HAP_TABLE.out.reports
+    variant_calling_reports_dir = variant_calling_reports_dir
 
     trimmed_pop_clustering_res_pop_clustering_dir = PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED.out.pop_clustering_dir
     trimmed_pop_clustering_res_all_selected_clusters_info = PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED.out.all_selected_clusters_info
     trimmed_pop_clustering_res_targets_with_results = PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED.out.targets_with_results
-    trimmed_variant_calling_reports_dir = VARIANT_CALL_ON_HAP_TABLE_ON_TRIMMED.out.reports
+    trimmed_variant_calling_reports_dir = trimmed_variant_calling_reports_dir
 }
