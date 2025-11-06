@@ -10,6 +10,8 @@ process EXTRACT_REGION_ASSEMBLIES {
 
 
     script:
+    def extra_args = task.ext.args ? task.ext.args : ''
+
     """
     PathWeaver BamExtractPathwaysFromRegion \
         --bamExtractTrimToRegion \
@@ -19,6 +21,7 @@ process EXTRACT_REGION_ASSEMBLIES {
         --bam ${bam_fnp} \
         --dout ${sample}_${dirstub} \
         --overWriteDir \
-        --numThreads ${params.pw_ncpus};
+        --numThreads ${params.pw_ncpus} \
+        $extra_args
     """
 }
