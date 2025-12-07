@@ -80,7 +80,7 @@ allBasicInfo = readr::read_tsv("PathWeaverResults/reports/populationClustering/r
 allBasicInfo = allBasicInfo |>
     group_by(sample) |>
     mutate(medianCov = median(perBaseCoverage)) |>
-    mutate(covNorm = perBaseCoverage/medianCov )
+    mutate(covNorm = ifelse(medianCov > 0, perBaseCoverage/medianCov, 0))
 
 
 allBasicInfo_sp = allBasicInfo |>
