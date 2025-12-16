@@ -77,7 +77,8 @@ sample_name_key = readr::read_tsv("meta/sample_name_key.tsv")
 allExtractionStats = readr::read_tsv("extractionReports/allExtractionStats.tsv.gz") %>%
   left_join(sample_name_key %>%
               dplyr::rename(sampleName = old_sample_name,
-                            sample_name = new_sample_name))
+                            sample_name = new_sample_name)) %>%
+  mutate(sample_name = ifelse(is.na(sample_name), sampleName, sample_name))
 
 allExtractionStats_sample_fig_w <- max(6, n_distinct(allExtractionStats$sample_name) * cell_w)
 
@@ -85,7 +86,8 @@ allExtractionStats_sample_fig_w <- max(6, n_distinct(allExtractionStats$sample_n
 allExtractionProfile = readr::read_tsv("extractionReports/allExtractionProfile.tsv.gz") %>%
   left_join(sample_name_key %>%
               dplyr::rename(sample = old_sample_name,
-                            sample_name = new_sample_name))
+                            sample_name = new_sample_name)) %>%
+  mutate(sample_name = ifelse(is.na(sample_name), sample, sample_name))
 
 targets_name_key = tibble()
 if(file.exists("finalResults/variantCalls/reports/info/targetsIntersectingWithGenesInfo.tsv")){
@@ -137,7 +139,9 @@ allSelectedClustersInfo = readr::read_tsv("finalResults/allSelectedClustersInfo.
               dplyr::rename(p_name = target))
 
 allSelectedClustersInfo_prep = HaplotypeRainbows::prepForRainbow(allSelectedClustersInfo, targetCol = new_target_name)
-allSelectedClustersInfo_prep = HaplotypeRainbows::resort_prepped_samples_by_clustering(allSelectedClustersInfo_prep, targetCol = new_target_name)
+if(nrow(allSelectedClustersInfo) > 1){
+  allSelectedClustersInfo_prep = HaplotypeRainbows::resort_prepped_samples_by_clustering(allSelectedClustersInfo_prep, targetCol = new_target_name)
+}
 allSelectedClustersInfo_plot = HaplotypeRainbows::genRainbowHapPlotObj(allSelectedClustersInfo_prep, targetCol = new_target_name) %>%
   HaplotypeRainbows::add_haplotype_rainbow_axis_theming(allSelectedClustersInfo_prep, targetCol = new_target_name)
 
