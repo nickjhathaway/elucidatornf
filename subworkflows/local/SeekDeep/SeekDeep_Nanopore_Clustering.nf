@@ -14,6 +14,45 @@ include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
 include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/gen_target_info_from_genomes/main.nf'
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
+include { AMPLICON_NANOPORE_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_nanopore_create_dashboards/main.nf"
+
+include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
+
+
+process WRITE_SAMPLE_NAME_KEY {
+  tag "sample_name_key"
+
+  publishDir { meta_dir }, mode: 'copy', overwrite: true
+
+  input:
+    val lines
+    val meta_dir
+
+  output:
+    path "sample_name_key.tsv"
+
+  script:
+    def header = "old_sample_name\tnew_sample_name\n"
+
+    // sort by old_sample_name (first column)
+    def sorted = (lines ?: []).sort { a, b ->
+      def aOld = a.split('\t', 2)[0]
+      def bOld = b.split('\t', 2)[0]
+      aOld <=> bOld
+    }
+
+    def body = sorted.join('\n')
+    def text = header + (body ? body : "")
+
+    """
+    cat > sample_name_key.tsv <<'EOF'
+${text}
+EOF
+    """
+}
+
+
+
 
 workflow NANOPORE_AMPLICON_CLUSTERING {
     take:
@@ -26,13 +65,20 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     output_dir // the output directory
     main:
 
+
     def primer_info_dir = file("${output_dir}/primerInfo")
     primer_info_dir.mkdirs()
+
+    def meta_info_dir = file("${output_dir}/meta")
+    meta_info_dir.mkdirs()
 
     def extraction_reports_dir = file("${output_dir}/extractionReports")
     extraction_reports_dir.mkdirs()
     def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
+
+    // optional sample renaming map
+    def rename_key = SampleRename.loadRenameKey(params.nanopore_rename_key_fnp)
 
     primers_fnp_ch = primers_fnp
 
@@ -46,7 +92,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
 
     AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.resources.max_cpus, extraction_reports_dir)
 
-    fastq_input_ch = Channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
+    fastq_input_ch = channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
 
     input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
@@ -73,26 +119,43 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     )
 
     //get the targets that have coverage
-    // def targets = CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.targets_with_passing_reads
-    //     .splitText()
-    //     .map{samp ->
-    //         samp.trim() // Remove any whitespace
-    //         }
     def targets = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.targets_with_extractions
         .splitText()
         .map{samp ->
             samp.trim() // Remove any whitespace
             }
 
-    // create a list of input to cluster for the input that actually exists
-    def input_to_clustering = targets.combine(EXTRACTOR_BY_KMER_MATCHING.out.sample_dir)
-        .map{tar, samp, sampdir ->
-                def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
-                if(extracted_tar_sample_fnp.exists()){
-                    tuple(extracted_tar_sample_fnp,  samp, tar, params.nanopore_clustering_ncpus)
-                }
-            }
 
+    // create a list of input to cluster for the input that actually exists
+    def clustered_inputs_with_key = targets.combine(EXTRACTOR_BY_KMER_MATCHING.out.sample_dir)
+        .map { tar, samp, sampdir ->
+
+            def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
+            if( !extracted_tar_sample_fnp.exists() ) return null
+
+            // apply optional renaming (fallback to original if not present)
+            def samp_renamed = rename_key.containsKey(samp) ? rename_key[samp] : samp
+
+            // emit BOTH: the clustering tuple + the mapping tuple
+            tuple(
+                tuple(extracted_tar_sample_fnp, samp_renamed, tar, params.nanopore_clustering_ncpus),
+                tuple(samp, samp_renamed)
+            )
+        }
+        .filter { entry -> entry != null }
+
+    // split into the two channels we want
+    def input_to_clustering = clustered_inputs_with_key.map { entry -> entry[0] }
+    def sample_key_ch       = clustered_inputs_with_key.map { entry -> entry[1] }.distinct()
+
+    // write sample rename key (old -> new) for samples that had extracted reads
+    // sample_key_ch is a channel of tuples: (oldName, newName)
+    def sample_key_lines_ch = sample_key_ch
+        .map { oldName, newName -> "${oldName}\t${newName}" }
+        .distinct()
+        .collect()
+
+    WRITE_SAMPLE_NAME_KEY(sample_key_lines_ch, meta_info_dir.toString())
     //cluster per target per sample
     AMPLICON_CLUSTER_BY_KMER_SIMILARITY(input_to_clustering)
 
@@ -109,7 +172,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
         // .groupTuple(by : 1, size: fastq_count)
         .groupTuple(by : 1)
         .combine(ref_seqs_dir_ch)
-        .map { samples, target, target_fastqs, ref_seqs_dir ->
+        .map { _samples, target, target_fastqs, ref_seqs_dir ->
                 tuple(
                     target_fastqs, // List of fastq files for this target
                     target,
@@ -150,7 +213,22 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
             file(variant_call_dir),
             params.vc_extra_args
         )
+        AMPLICON_NANOPORE_CREATE_DASHBOARDS(file("${output_dir}"),
+            file("${projectDir}/etc/nanopore_clustering_report.qmd"),
+            params.nanopore_render_clustering_report,
+            VARIANT_CALL_ON_HAP_TABLE.out.reports,
+            CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
+        )
+    } else {
+        AMPLICON_NANOPORE_CREATE_DASHBOARDS(file("${output_dir}"),
+            file("${projectDir}/etc/nanopore_clustering_report.qmd"),
+            params.nanopore_render_clustering_report,
+            CONCATENATE_AMPLICON_POPULATION_CLUSTERING.out.all_selected_clusters_info,
+            CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
+        )
     }
+
+
 
     workflow.onComplete {
         def outputDir = file("${output_dir}/run")
@@ -159,6 +237,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
         }
         record_NANOPORE_AMPLICON_CLUSTERING_params()
         record_NANOPORE_AMPLICON_CLUSTERING_runtime()
+        completionSummary(false)
     }
 }  //NANOPORE_AMPLICON_CLUSTERING
 
@@ -171,6 +250,7 @@ def record_NANOPORE_AMPLICON_CLUSTERING_params() {
             writer.println("${k}\t${v}")}
     }
 }
+
 
 /* Record runtime information
  *

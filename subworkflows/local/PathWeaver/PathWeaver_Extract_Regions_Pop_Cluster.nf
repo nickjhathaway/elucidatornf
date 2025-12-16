@@ -67,7 +67,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
 
     if (params.do_variant_calling){
         //copy over dashboard quarto document
-        PW_CREATE_DASHBOARDS(file("${results_dir}"),  file("${projectDir}/etc/pw_basic_report.qmd"),
+        PW_CREATE_DASHBOARDS(file("${results_dir}"),
+            file("${projectDir}/etc/pw_basic_report.qmd"),
             params.render_pw_report,
             PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_targets_with_results,
             GET_INTERSECTING_GENE_INFO_FOR_REGIONS.out.bed_withGeneInfo_tsv,

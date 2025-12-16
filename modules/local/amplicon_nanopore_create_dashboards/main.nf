@@ -1,4 +1,4 @@
-process PW_CREATE_DASHBOARDS {
+process AMPLICON_NANOPORE_CREATE_DASHBOARDS{
     label 'process_single'
 
 
@@ -7,8 +7,7 @@ process PW_CREATE_DASHBOARDS {
     path basic_reports_qmd
     val render_report
     path pop_clustering_res_targets_with_results
-    path bed_withGeneInfo_tsv
-    path variant_reports_path
+    path extraction_results
 
     output:
     path "*.html", optional: true
