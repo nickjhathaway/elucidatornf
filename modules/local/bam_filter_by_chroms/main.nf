@@ -49,9 +49,9 @@ process BAM_FILTER_BY_CHROMS {
     }
 
     mv ${sample_id}_${filter_name}_filteredByChrom.tab.txt original_${sample_id}_${filter_name}_filteredByChrom.tab.txt
-    elucidator addColumn --file original_${sample_id}_${filter_name}_filteredByChrom.tab.txt --newColumnName filter --header --delim tab --element host2_bwa --out ${sample_id}_${filter_name}_filteredByChrom.tab.txt
+    elucidator addColumn --file original_${sample_id}_${filter_name}_filteredByChrom.tab.txt --newColumnName filter --header --delim tab --element ${filter_name} --out ${sample_id}_${filter_name}_filteredByChrom.tab.txt
     mv ${sample_id}_${filter_name}_totalReadCounts.tab.txt original_${sample_id}_${filter_name}_totalReadCounts.tab.txt
-    elucidator addColumn --file original_${sample_id}_${filter_name}_totalReadCounts.tab.txt --newColumnName filter --header --delim tab --element host2_bwa --out ${sample_id}_${filter_name}_totalReadCounts.tab.txt
+    elucidator addColumn --file original_${sample_id}_${filter_name}_totalReadCounts.tab.txt --newColumnName filter --header --delim tab --element ${filter_name} --out ${sample_id}_${filter_name}_totalReadCounts.tab.txt
 
     touch_empty_gz "${sample_id}_${filter_name}_kept_R1.fastq.gz"
     touch_empty_gz "${sample_id}_${filter_name}_kept_R2.fastq.gz"
