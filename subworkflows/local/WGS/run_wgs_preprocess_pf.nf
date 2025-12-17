@@ -106,7 +106,7 @@ workflow RUN_WGS_PREPROCESS_PF{
 
     // map bwa to host 1 filter
     host1_bwa_map_in = host1_minimap2_filter_out.map{sid, _kept_r1, _kept_r2, unmapped_r1, unmapped_r2, _chrom_tab, _total_tab ->
-        tuple(sid, unmapped_r1, unmapped_r2, wgs_host1_filter_genome_fasta_fnp)
+        tuple(sid, wgs_host1_filter_genome_fasta_fnp, file("${wgs_host1_filter_genome_fasta_fnp}.*"), unmapped_r1, unmapped_r2)
     }
     host1_bwa_filter_out = HOST1_FILT_MAP_BWA(host1_bwa_map_in)
     // filter by host 1 filter on bwa

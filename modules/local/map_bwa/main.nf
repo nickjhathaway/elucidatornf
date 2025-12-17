@@ -4,7 +4,7 @@ process MAP_BWA {
     label 'process_medium_low_memory'
 
     input:
-    tuple val(sample_id), path(genome_fasta_fnp), path(r1), path(r2)
+    tuple val(sample_id), path(genome_fasta_fnp), path(genome_index_files), path(r1), path(r2)
 
     output:
     tuple val(sample_id), path("${sample_id}.sorted.bam"), path("${sample_id}.sorted.bam.bai")
