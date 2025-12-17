@@ -47,8 +47,8 @@ process WGS_BUILD_FINAL_SAMPLE_SUMMARY {
   fi
 
   # ---- final BAM primary mapped ----
-  bam_total=$(awk 'NR==1{print $1+0}' "${flagstat_txt}")
-  bam_primary=$(awk '/ primary mapped /{print $1+0; exit}' "${flagstat_txt}")
+  bam_total=\$(awk 'NR==1{print \$1+0}' "${flagstat_txt}")
+  bam_primary=\$(awk '/ primary mapped /{print \$1+0; exit}' "${flagstat_txt}")
 
   bam_primary_pct="NA"
   if [ "\$bam_total" -gt 0 ]; then
