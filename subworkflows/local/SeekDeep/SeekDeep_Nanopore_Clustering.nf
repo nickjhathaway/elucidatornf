@@ -66,6 +66,85 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     main:
 
 
+    //
+    // Set up for validation
+    //
+    errors = []
+
+    // Map from internal var -> CLI-style name (for messages)
+    required_params = [
+        input_fastq_dir : '--input_fastq_dir',
+        primers_fnp     : '--primers_fnp',
+        genome_dir      : '--genome_dir',
+        gff_dir         : '--gff_dir',
+        output_dir      : '--outdir'
+    ]
+
+    // Map from internal var -> actual value passed to subworkflow
+    inputs = [
+        input_fastq_dir : input_fastq_dir,
+        primers_fnp     : primers_fnp,
+        genome_dir      : genome_dir,
+        gff_dir         : gff_dir,
+        output_dir      : output_dir
+    ]
+    //
+    // 2) Existence checks for paths (only if non-blank)
+    //
+    path_checks = [
+        input_fastq_dir : "directory",
+        primers_fnp     : "file",
+        genome_dir      : "directory",
+        gff_dir         : "directory"
+    ]
+
+    path_checks.each { key, type ->
+        def raw = inputs[key]
+        def obj = file(raw)
+        if (!obj.exists()) {
+            errors << "Path does not exist for ${required_params[key]}: '${raw}'"
+        } else if (type == "directory" && !obj.isDirectory()) {
+            errors << "Expected a directory for ${required_params[key]} but found a file: '${raw}'"
+        } else if (type == "file" && !obj.isFile()) {
+            errors << "Expected a file for ${required_params[key]} but found a directory: '${raw}'"
+        }
+    }
+
+    //
+    // 3) Fail fast if validation failed
+    //
+    if (!errors.isEmpty()) {
+        def joined = errors.collect {it -> "  - ${it}" }.join("\n")
+        error """
+Input validation failed in subworkflow NANOPORE_AMPLICON_CLUSTERING:
+
+${joined}
+
+Please correct the above issues and re-run.
+"""
+    }
+
+    def outdir = output_dir.toString().trim()
+
+    //check if inputs exists
+
+
+    //
+    // Create output directory (overwrite if exists)
+    //
+    def results_dir_obj = file(outdir)
+    if (results_dir_obj.exists()) {
+        results_dir_obj.deleteDir()
+    }
+    results_dir_obj.mkdirs()
+
+    //
+    // Inner primers logic
+    //
+    if (params.nanopore_extractor_use_inner_primers) {
+        params.nanopore_clustering_lower_base = "upper"
+    }
+
     def primer_info_dir = file("${output_dir}/primerInfo")
     primer_info_dir.mkdirs()
 
