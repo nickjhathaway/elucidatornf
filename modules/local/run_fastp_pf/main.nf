@@ -8,10 +8,10 @@ process FASTP_TRIM {
     tuple val(sample_id), path(reads)
 
     output:
-    val sample_id
-    path "trimmed_${sample_id}_R1.fastq.gz", emit: r1_trimmed_fnp
-    path "trimmed_${sample_id}_R2.fastq.gz", emit: r2_trimmed_fnp
-    path "${sample_id}.fastp.json" , emit: json_summary
+    tuple val(sample_id),
+          path ("trimmed_${sample_id}_R1.fastq.gz"),
+          path("trimmed_${sample_id}_R2.fastq.gz"),
+          path("${sample_id}.fastp.json")
 
     script:
     def (r1, r2) = reads
