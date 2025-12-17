@@ -11,7 +11,7 @@ process WGS_BUILD_FINAL_SAMPLE_SUMMARY {
         val(pub_dir),
         path(fastp_json),
         path(totalReadCounts_tsv_gz),
-        path(final_bam)
+        path(flagstat_txt)
 
   output:
   path("${sample_id}_final_summary.tsv.gz")
@@ -47,9 +47,8 @@ process WGS_BUILD_FINAL_SAMPLE_SUMMARY {
   fi
 
   # ---- final BAM primary mapped ----
-  flagstat=\$(samtools flagstat -@ ${task.cpus} "${final_bam}")
-  bam_total=\$(printf "%s\\n" "\$flagstat" | awk 'NR==1{print \$1+0}')
-  bam_primary=\$(printf "%s\\n" "\$flagstat" | awk '/ primary mapped /{print \$1+0; exit}')
+  bam_total=$(awk 'NR==1{print $1+0}' "${flagstat_txt}")
+  bam_primary=$(awk '/ primary mapped /{print $1+0; exit}' "${flagstat_txt}")
 
   bam_primary_pct="NA"
   if [ "\$bam_total" -gt 0 ]; then

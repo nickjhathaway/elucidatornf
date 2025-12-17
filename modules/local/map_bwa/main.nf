@@ -7,8 +7,10 @@ process MAP_BWA {
     tuple val(sample_id), path(genome_fasta_fnp), path(genome_index_files), path(r1), path(r2)
 
     output:
-    tuple val(sample_id), path("${sample_id}.sorted.bam"), path("${sample_id}.sorted.bam.bai")
-
+    tuple val(sample_id),
+            path("${sample_id}.sorted.bam"),
+            path("${sample_id}.sorted.bam.bai"),
+            path("${sample_id}.flagstat.txt")
     script:
     """
 
@@ -20,5 +22,7 @@ process MAP_BWA {
       2> ${sample_id}.samtools.log.txt
 
     samtools index ${sample_id}.sorted.bam
+    samtools flagstat -@ ${task.cpus} ${sample_id}.sorted.bam > ${sample_id}.flagstat.txt
+
     """
 }

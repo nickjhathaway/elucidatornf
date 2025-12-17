@@ -133,7 +133,7 @@ workflow RUN_WGS_PREPROCESS_PF{
     }
     host1_bwa_filter_out = HOST1_FILT_MAP_BWA(host1_bwa_map_in)
     // filter by host 1 filter on bwa
-    host1_bwa_filt_in = host1_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
+    host1_bwa_filt_in = host1_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp, _flagstat ->
         tuple(sid, "host1_bwa_filt", bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
     }
     host1_bwa_filter_out = HOST1_BWA_BAM_FILTER_BY_CHROMS(host1_bwa_filt_in)
@@ -155,7 +155,7 @@ workflow RUN_WGS_PREPROCESS_PF{
     }
     host2_bwa_filter_out = HOST2_FILT_MAP_BWA(host2_bwa_map_in)
     // filter by host 2 filter on bwa
-    host2_bwa_filt_in = host2_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
+    host2_bwa_filt_in = host2_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp, _flagstat ->
         tuple(sid, "host2_bwa_filt", bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, false)
     }
     host2_bwa_filter_out = HOST2_BWA_BAM_FILTER_BY_CHROMS(host2_bwa_filt_in)
@@ -273,23 +273,24 @@ workflow RUN_WGS_PREPROCESS_PF{
         tuple(sid, 'counts', total)
     }
 
-    final_bam_tagged = final_bam_out.map { sid, bam, _bai ->
-        tuple(sid, 'bam', bam)
+    final_flagstat_tagged = final_bam_out.map { sid, _bam, _bai, flagstat ->
+        tuple(sid, 'flagstat', flagstat)
     }
+
 
     all_summary_inputs =
         fastp_json_tagged
             .mix(total_counts_tagged)
-            .mix(final_bam_tagged)
+            .mix(final_flagstat_tagged)
 
     summary_in =
-        all_summary_inputs
-            .map { sid, tag, obj -> tuple(sid, [tag, obj]) }
-            .groupTuple(size: 3)
-            .map { sid, recs ->
-                def byTag = recs.collectEntries { r -> [(r[0]): r[1]] }
-                tuple(sid, fastp_trim_info_dir, byTag['fastp'], byTag['counts'], byTag['bam'])
-            }
+    all_summary_inputs
+        .map { sid, tag, obj -> tuple(sid, [tag, obj]) }
+        .groupTuple(size: 3)
+        .map { sid, recs ->
+            def byTag = recs.collectEntries { r -> [(r[0]): r[1]] }
+            tuple(sid, fastp_trim_info_dir, byTag['fastp'], byTag['counts'], byTag['flagstat'])
+        }
 
     WGS_BUILD_FINAL_SAMPLE_SUMMARY(summary_in)
 
