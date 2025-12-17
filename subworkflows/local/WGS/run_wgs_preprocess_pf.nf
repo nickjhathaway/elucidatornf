@@ -18,6 +18,7 @@ include { BAM_FILTER_BY_CHROMS as HOST2_BWA_BAM_FILTER_BY_CHROMS} from '../../..
 include { COMBINE_KEPT_FILTERED_FASTQS } from '../../../modules/local/combine_kept_filtered_fastqs'
 include { COMBINE_KEPT_FILTERED_COUNTS } from '../../../modules/local/combine_kept_filtered_fastqs'
 
+include { WGS_BUILD_FINAL_SAMPLE_SUMMARY } from "../../../modules/local/wgs_build_final_sample_summary"
 
 
 workflow RUN_WGS_PREPROCESS_PF{
@@ -248,7 +249,7 @@ workflow RUN_WGS_PREPROCESS_PF{
                     byTag['h2_bwa'][1], byTag['h2_bwa'][2]
                 )
             }
-    COMBINE_KEPT_FILTERED_COUNTS(combine_filt_counts_in)
+    combined_counts = COMBINE_KEPT_FILTERED_COUNTS(combine_filt_counts_in)
 
     // map to final bam
     final_map_in = combined_kept.map { sid, kept_r1, kept_r2 ->
@@ -261,6 +262,35 @@ workflow RUN_WGS_PREPROCESS_PF{
         )
     }
 
-    FINAL_MAP_BWA(final_map_in)
+    final_bam_out = FINAL_MAP_BWA(final_map_in)
+
+    //summarize
+    fastp_json_tagged = trimmed_ch.map { sid, _r1, _r2, json ->
+        tuple(sid, 'fastp', json)
+    }
+
+    total_counts_tagged = combined_counts.map { sid, _chrom, total ->
+        tuple(sid, 'counts', total)
+    }
+
+    final_bam_tagged = final_bam_out.map { sid, bam, _bai ->
+        tuple(sid, 'bam', bam)
+    }
+
+    all_summary_inputs =
+        fastp_json_tagged
+            .mix(total_counts_tagged)
+            .mix(final_bam_tagged)
+
+    summary_in =
+        all_summary_inputs
+            .map { sid, tag, obj -> tuple(sid, [tag, obj]) }
+            .groupTuple(size: 3)
+            .map { sid, recs ->
+                def byTag = recs.collectEntries { r -> [(r[0]): r[1]] }
+                tuple(sid, fastp_trim_info_dir, byTag['fastp'], byTag['counts'], byTag['bam'])
+            }
+
+    WGS_BUILD_FINAL_SAMPLE_SUMMARY(summary_in)
 
 }
