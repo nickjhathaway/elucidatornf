@@ -5,7 +5,7 @@ process BAM_FILTER_BY_CHROMS {
     label 'process_single'
 
     input:
-    tuple val(sample_id), path(bam), path(host_chroms), val(write_unmapped_sep)
+    tuple val(sample_id), path(bam), path(bam_bai), path(host_chroms), val(write_unmapped_sep)
 
     output:
     tuple val(sample_id),
@@ -18,8 +18,8 @@ process BAM_FILTER_BY_CHROMS {
 
     script:
 
-    def any_mate_flag                  = params.host_filter_any_mate                  ? '--any_mate' : ''
-    def filter_with_unmapped_mate_flag = params.host_filter_filter_with_unmapped_mate ? '--filterWithUnmappedMate' : ''
+    def any_mate_flag                  = params.wgs_host_filter_any_mate                  ? '--any_mate' : ''
+    def filter_with_unmapped_mate_flag = params.wgs_host_filter_filter_with_unmapped_mate ? '--filterWithUnmappedMate' : ''
     def unmapped_flag                  = write_unmapped_sep                           ? '--writeOutUnmappedSeparately' : ''
 
 

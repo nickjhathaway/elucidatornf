@@ -1,7 +1,7 @@
 
 process FASTP_TRIM {
 
-    tag "${sample_id}"
+    tag "${sample_id}_fastp_trimming"
     label 'process_medium_low_memory'
 
     input:

@@ -4,9 +4,17 @@ nextflow.enable.dsl = 2
 
 
 include { FASTP_TRIM } from '../../../modules/local/run_fastp_pf'
-include { MAP_BWA } from '../../../modules/local/map_bwa'
-include { MAP_MINIMAP2 } from '../../../modules/local/map_minimap2'
-include { BAM_FILTER_BY_CHROMS } from '../../../modules/local/bam_filter_by_chroms'
+include { MAP_BWA as HOST1_FILT_MAP_BWA} from '../../../modules/local/map_bwa'
+include { MAP_BWA as HOST2_FILT_MAP_BWA} from '../../../modules/local/map_bwa'
+include { MAP_BWA as FINAL_MAP_BWA } from '../../../modules/local/map_bwa'
+include { MAP_MINIMAP2 as HOST1_FILT_MAP_MINIMAP2 } from '../../../modules/local/map_minimap2'
+include { MAP_MINIMAP2 as HOST2_FILT_MAP_MINIMAP2} from '../../../modules/local/map_minimap2'
+
+include { BAM_FILTER_BY_CHROMS as HOST1_MINIMAP2_BAM_FILTER_BY_CHROMS } from '../../../modules/local/bam_filter_by_chroms'
+include { BAM_FILTER_BY_CHROMS as HOST1_BWA_BAM_FILTER_BY_CHROMS} from '../../../modules/local/bam_filter_by_chroms'
+include { BAM_FILTER_BY_CHROMS as HOST2_MINIMAP2_BAM_FILTER_BY_CHROMS} from '../../../modules/local/bam_filter_by_chroms'
+include { BAM_FILTER_BY_CHROMS as HOST2_BWA_BAM_FILTER_BY_CHROMS} from '../../../modules/local/bam_filter_by_chroms'
+
 include { COMBINE_KEPT_FILTERED_FASTQS } from '../../../modules/local/combine_kept_filtered_fastqs'
 
 
@@ -88,15 +96,25 @@ workflow RUN_WGS_PREPROCESS_PF{
         tuple(sid, host1_mmi_path, r1_trim, r2_trim)
     }
 
-    MAP_MINIMAP2(host1_minimap2_in)
-
+    host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
     // map minimap2 to host 1 filter
-
+    host1_minimap2_filt_in = host1_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
+        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
+    }
     // filter by host 1 filter on minimap2
+    host1_minimap2_filter_out = HOST1_MINIMAP2_BAM_FILTER_BY_CHROMS(host1_minimap2_filt_in)
 
     // map bwa to host 1 filter
-
+    host1_bwa_map_in = host1_minimap2_filter_out.map{sid, _kept_r1, _kept_r2, unmapped_r1, unmapped_r2, _chrom_tab, _total_tab ->
+        tuple(sid, unmapped_r1, unmapped_r2, wgs_host1_filter_genome_fasta_fnp)
+    }
+    host1_bwa_filter_out = HOST1_FILT_MAP_BWA(host1_bwa_map_in)
     // filter by host 1 filter on bwa
+    host1_bwa_filt_in = host1_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
+        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
+    }
+    //host1_bwa_filter_out =
+    HOST1_BWA_BAM_FILTER_BY_CHROMS(host1_bwa_filt_in)
 
     // map minimap2 to host 2 filter
 
