@@ -6,9 +6,10 @@ format:
         orientation: columns
         theme: yeti
         embed-resources: true
+        dpi: 300
 ---
 
-```{r}
+```{r setup}
 #cran
 library(readr)
 library(ggplot2)
@@ -31,58 +32,97 @@ library(HaplotypeRainbows)
 ##github
 ###install.packages(c('remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
 ###remotes::install_github('nickjhathaway/HaplotypeRainbows@develop')
-```
 
-```{r}
 create_dt <- function(x){
     DT::datatable(x,
                 extensions = 'Buttons',
                 options = list(dom = 'Blfrtip',
                                 buttons = list('copy', 'csv', list(extend = 'excel', title = NULL), 'pdf', 'print'),
                                # buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                               pageLength = 25,
+                               pageLength = 10,
                                 lengthMenu = list(c(10,25,50,-1),
                                                     c(10,25,50,"All")),
-                paging = TRUE,
-                scrollY = "60vh",
-                scrollCollapse = TRUE),
-                filter = "top",
-                class = "display"
+                paging = TRUE
+                ),
+                filter = "top"
   )
 }
+
+colorPalette_08 = c("#2271B2","#F748A5","#359B73","#F0E442","#D55E00","#3DB7E9","#E69F00","#000000")
+colorPalette_12 = c("#E20134","#00FCCF","#008DF9","#8400CD","#FFC33B","#9F0162","#009F81","#FF5AAF","#FF6E3A","#00C2F9","#FFB2FD","#A40122")
+colorPalette_15 = c("#F60239","#003C86","#EF0096","#9400E6","#009FFA","#008169","#68023F","#00DCB5","#FFCFE2","#FF71FD","#7CFFFA","#6A0213","#008607","#00E307","#FFDC3D")
+
+# commonly used functions
+`%!in%` <- Negate(`%in%`)
+is.notna <- function(x) {
+  return(!is.na(x))
+}
+# tuning parameters
+cell_w <- 0.25   # inches per column
+cell_h <- 0.25   # inches per row
 
 ```
 
 ```{r}
-seqsPerTargetGatheredDetailed = readr::read_tsv("PathWeaverResults/reports/populationClustering/reports/seqsPerTargetGatheredDetailed.tab.txt")
+targets = readr::read_tsv("regions/bed_withGeneInfo.tsv", col_names = T)
+targets_aaInfo = readr::read_tsv("regions/bed_withGeneAAInfo.bed", col_names = T)
+```
+
+```{r}
+targets_name_key = targets %>%
+  mutate(new_target_name = case_when(
+    is.na(ID) ~ name,
+    is.na(Name) ~ paste0(name, "-", ID),
+    T ~ paste0(name, "-", Name)
+  )) %>%
+  select(name, new_target_name)
+```
 
 
-seqsPerTargetGatheredDetailed_samplesGatheredPerTarget_plot = ggplot(seqsPerTargetGatheredDetailed, aes(x = target, y  = nSamples)) +
+
+```{r}
+seqsPerTargetGatheredDetailed = readr::read_tsv("PathWeaverResults/reports/populationClustering/reports/seqsPerTargetGatheredDetailed.tab.txt") %>%
+  left_join(targets_name_key %>%
+              dplyr::rename(target = name))
+
+label_nudge_samples <- 0.0125 * max(seqsPerTargetGatheredDetailed$nSamples)
+label_nudge_haps <- 0.0125 * max(seqsPerTargetGatheredDetailed$totalHaplotypes)
+
+seqsPerTargetGatheredDetailed_samplesGatheredPerTarget_plot = ggplot(seqsPerTargetGatheredDetailed,
+                                                                     aes(x = new_target_name, y  = nSamples)) +
     geom_col() +
     geom_text(
-        aes(label = nSamples),
-        nudge_y = 2
+        aes(label = nSamples
+            ),
+        nudge_y = label_nudge_samples
+
     ) +
     labs(y = "Total Samples")+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = -90, hjust = 0))
 
 
-seqsPerTargetGatheredDetailed_totalHapsGatheredPerTarget_plot = ggplot(seqsPerTargetGatheredDetailed, aes(x = target, y  = totalHaplotypes)) +
+seqsPerTargetGatheredDetailed_totalHapsGatheredPerTarget_plot = ggplot(seqsPerTargetGatheredDetailed,
+  aes(x = new_target_name, y  = totalHaplotypes)) +
     geom_col() +
     geom_text(
-        aes(label = totalHaplotypes),
-        nudge_y = 2
+        aes(label = totalHaplotypes
+            ),
+        nudge_y = label_nudge_haps
+
     ) +
     labs(y = "Total Haplotypes") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = -90, hjust = 0))
+n_targets <- dplyr::n_distinct(seqsPerTargetGatheredDetailed$new_target_name)
+plot_w_px <- max(c(700, n_targets * 20))   # 35 px per bar is a decent start
 
 ```
 
 
 ```{r}
-allBasicInfo = readr::read_tsv("PathWeaverResults/reports/populationClustering/reports/allBasicInfo.tab.txt.gz")
+allBasicInfo = readr::read_tsv("PathWeaverResults/reports/populationClustering/reports/allBasicInfo.tab.txt.gz")%>%
+  left_join(targets_name_key )
 
 allBasicInfo = allBasicInfo |>
     group_by(sample) |>
@@ -91,8 +131,8 @@ allBasicInfo = allBasicInfo |>
 
 
 allBasicInfo_sp = allBasicInfo |>
-    select(sample, name, covNorm) |>
-    spread(name, covNorm)
+    select(sample, new_target_name, covNorm) |>
+    spread(new_target_name, covNorm)
 
 allBasicInfo_sp_mat = as.matrix(allBasicInfo_sp[,2:ncol(allBasicInfo_sp)])
 rownames(allBasicInfo_sp_mat) = allBasicInfo_sp$sample
@@ -105,9 +145,9 @@ allBasicInfo_sp_mat_hp = Heatmap(
 )
 
 allBasicInfo_logRawCov_sp = allBasicInfo |>
-    select(sample, name, perBaseCoverage) |>
+    select(sample, new_target_name, perBaseCoverage) |>
     mutate(perBaseCoverage = log10(perBaseCoverage + 1)) |>
-    spread(name, perBaseCoverage)
+    spread(new_target_name, perBaseCoverage)
 
 allBasicInfo_logRawCov_sp_mat = as.matrix(allBasicInfo_logRawCov_sp[,2:ncol(allBasicInfo_logRawCov_sp)])
 rownames(allBasicInfo_logRawCov_sp_mat) = allBasicInfo_logRawCov_sp$sample
@@ -118,52 +158,96 @@ allBasicInfo_logRawCov_sp_mat_hp = Heatmap(
     row_dend_width = unit(4, "cm"),
     column_dend_height  = unit(2, "cm")
 )
+
+coverage_fig_w <- max(6, ncol(allBasicInfo_logRawCov_sp_mat) * cell_w)
+coverage_fig_h <- max(6, nrow(allBasicInfo_logRawCov_sp_mat) * cell_h * 1.5)
+
+
+
 ```
 
 
-```{r}
-targets = readr::read_tsv("regions/bed_withGeneInfo.tsv", col_names = T)
-targets_aaInfo = readr::read_tsv("regions/bed_withGeneAAInfo.bed", col_names = T)
-
-```
 
 ```{r}
-div_measures = readr::read_tsv("PathWeaverResults/variantCalls/reports/popGenetics/allDiversityMeasures.tsv.gz")
+div_measures = readr::read_tsv("PathWeaverResults/variantCalls/reports/popGenetics/allDiversityMeasures.tsv.gz") %>%
+  left_join(targets_name_key %>%
+              dplyr::rename(target = name))
 div_measures_sel = div_measures |>
     select(-expShannonEntropy, -avgPercentID, -avgNumOfDiffs, -simpleAvalance, -completeAvalance)
 ```
 
 
 ```{r}
-allSelected = readr::read_tsv("PathWeaverResults/reports/populationClustering/reports/allSelectedClustersInfo.tab.txt.gz")
+allSelectedClustersInfo = readr::read_tsv("PathWeaverResults/reports/populationClustering/reports/allSelectedClustersInfo.tab.txt.gz") %>%
+  left_join(targets_name_key %>%
+              dplyr::rename(p_name = name))
 
-allSelected_prep = HaplotypeRainbows::prepForRainbow(allSelected)
-allSelected_prep_sp = allSelected_prep %>%
-    group_by(s_Sample, p_name) %>%
-    filter(c_AveragedFrac == max(c_AveragedFrac)) %>%
-    mutate(marker = 1) %>%
-    group_by() %>%
-    select(h_popUID, marker, s_Sample) %>%
-    spread(h_popUID, marker, fill = 0)
+allSelectedClustersInfo_prep = HaplotypeRainbows::prepForRainbow(allSelectedClustersInfo, targetCol = new_target_name)
+if(nrow(allSelectedClustersInfo) > 1){
+  allSelectedClustersInfo_prep = HaplotypeRainbows::resort_prepped_samples_by_clustering(allSelectedClustersInfo_prep, targetCol = new_target_name)
+}
+allSelectedClustersInfo_plot = HaplotypeRainbows::genRainbowHapPlotObj(allSelectedClustersInfo_prep, targetCol = new_target_name) %>%
+  HaplotypeRainbows::add_haplotype_rainbow_axis_theming(allSelectedClustersInfo_prep, targetCol = new_target_name)
 
-allSelected_prep_sp_mat = as.matrix(allSelected_prep_sp[,2:ncol(allSelected_prep_sp)])
-rownames(allSelected_prep_sp_mat) = allSelected_prep_sp$s_Sample
-allSelected_prep_sp_dist = dist(allSelected_prep_sp_mat)
-allSelected_prep_sp_dist_hclust = hclust(allSelected_prep_sp_dist, method = "ward.D2")
+allSelectedClustersInfo_prep_fig_w <- max(6, n_distinct(allSelectedClustersInfo_prep$new_target_name) * cell_w)
+allSelectedClustersInfo_prep_fig_h <- max(6, n_distinct(allSelectedClustersInfo_prep$s_Sample) * cell_h)
 
-#rename the levels so they are in the order of the clustering
-allSelected_prep = allSelected_prep %>%
-    mutate(s_Sample = factor(s_Sample, levels = rownames(allSelected_prep_sp_mat)[allSelected_prep_sp_dist_hclust$order]))
 
-allSelected_plot = HaplotypeRainbows::genRainbowHapPlotObj(allSelected_prep)
-allSelected_plot = allSelected_plot +
-    scale_x_continuous(
-        breaks = 1:n_distinct(allSelected_prep$p_name),
-        labels = levels(allSelected_prep$p_name)
-    ) +
-    theme(axis.text.x = element_text(angle = -90, hjust = 0))
 ```
 
+
+```{r}
+min_target_coverage = 0.80
+min_target = 20
+min_cum_freq = 0.98
+
+allSelectedClustersInfo_target_coverage = allSelectedClustersInfo %>%
+  group_by(new_target_name) %>%
+  summarise(sample_count = n_distinct(s_Sample)) %>%
+  mutate(sample_freq = sample_count/n_distinct(allSelectedClustersInfo$s_Sample))
+
+allSelectedClustersInfo_target_coverage_filt = allSelectedClustersInfo_target_coverage %>%
+  filter(sample_freq > min_target_coverage)
+
+
+allSelectedClustersInfo_filt = allSelectedClustersInfo %>%
+  filter(new_target_name %in% allSelectedClustersInfo_target_coverage_filt$new_target_name)
+
+allSelectedClustersInfo_filt_coi = allSelectedClustersInfo_filt %>%
+  group_by(s_Sample, new_target_name) %>%
+  summarise(COI = n_distinct(h_Consensus))
+
+allSelectedClustersInfo_filt_coi_sum = allSelectedClustersInfo_filt_coi %>%
+  group_by(s_Sample, COI) %>%
+  summarise(n = n()) %>%
+  mutate(total = sum(n)) %>%
+  mutate(freq = n/total) %>%
+  arrange(s_Sample, COI) %>%
+  mutate(cum_freq = cumsum(freq))
+
+allSelectedClustersInfo_filt_coi_sum_filt = allSelectedClustersInfo_filt_coi_sum %>%
+  filter(cum_freq >= min_cum_freq)
+
+allSelectedClustersInfo_filt_coi_coi_offset = allSelectedClustersInfo_filt_coi %>%
+  group_by(s_Sample) %>%
+  arrange(COI) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank != max(rank)) %>%
+  group_by(s_Sample) %>%
+  summarise(naive_COI_2nd_max_method = max(COI))
+
+allSelectedClustersInfo_filt_coi_sum_filt_COI = allSelectedClustersInfo_filt_coi_sum_filt %>%
+  group_by(s_Sample) %>%
+  summarise(naive_COI_freq_method = min(COI)) %>%
+  left_join(allSelectedClustersInfo_filt_coi_coi_offset) %>%
+  left_join(allSelectedClustersInfo_filt %>%
+              group_by(s_Sample) %>%
+              summarise(total_target = n_distinct(new_target_name))) %>%
+  bind_rows(allSelectedClustersInfo %>%
+              select(s_Sample) %>%
+              filter(s_Sample %!in% allSelectedClustersInfo_filt_coi_sum_filt$s_Sample))
+
+```
 
 ## Column
 
@@ -171,12 +255,22 @@ allSelected_plot = allSelected_plot +
 
 ```{r}
 #| title: Number of samples per target
-ggplotly(seqsPerTargetGatheredDetailed_samplesGatheredPerTarget_plot)
+#| out-width: "100%"
+#| out-height: "100%"
+
+ggplotly(seqsPerTargetGatheredDetailed_samplesGatheredPerTarget_plot,
+  width  = plot_w_px
+)
 ```
 
 ```{r}
 #| title: Number of total haplotypes per target
-ggplotly(seqsPerTargetGatheredDetailed_totalHapsGatheredPerTarget_plot)
+#| out-width: "100%"
+#| out-height: "100%"
+
+ggplotly(seqsPerTargetGatheredDetailed_totalHapsGatheredPerTarget_plot,
+  width  = plot_w_px
+)
 ```
 
 ### Row {height=20%}
@@ -193,8 +287,9 @@ create_dt(div_measures_sel)
 
 ```{r}
 #| title: Norm Coverage
-#| fig-height: 20
-#| fig-width: 32
+#| fig-width: !expr coverage_fig_w
+#| fig-height: !expr coverage_fig_h
+
 
 draw(allBasicInfo_sp_mat_hp, background = "transparent", merge_legend = TRUE,
     padding = unit(c(40, 2, 2, 2), "mm"))
@@ -202,20 +297,28 @@ draw(allBasicInfo_sp_mat_hp, background = "transparent", merge_legend = TRUE,
 
 ```{r}
 #| title: Log10 Coverage
-#| fig-height: 20
-#| fig-width: 32
+#| fig-width: !expr coverage_fig_w
+#| fig-height: !expr coverage_fig_h
+
 
 draw(allBasicInfo_logRawCov_sp_mat_hp, background = "transparent", merge_legend = TRUE,
     padding = unit(c(40, 2, 2, 2), "mm"))
 ```
 
+```{r}
+#| title: Haplotype Rainbow plot
+#| fig-width: !expr allSelectedClustersInfo_prep_fig_w
+#| fig-height: !expr allSelectedClustersInfo_prep_fig_h
+
+print(allSelectedClustersInfo_plot)
+```
 
 ```{r}
-#| title: Haplotype Rainbow
-#| fig-height: 20
-#| fig-width: 32
-allSelected_plot
+#| title: Naive COI estimates
+
+create_dt(allSelectedClustersInfo_filt_coi_sum_filt_COI)
 ```
+
 
 
 ### Row { height=20%}
@@ -224,11 +327,14 @@ allSelected_plot
 
 ```{r}
 #| title: Genomic locations
-create_dt(targets)
+create_dt(targets %>%
+  left_join(targets_name_key )
+  )
 ```
 
 ```{r}
 #| title: Protein locations
-create_dt(targets_aaInfo)
+create_dt(targets_aaInfo%>%
+  left_join(targets_name_key ))
 ```
 
