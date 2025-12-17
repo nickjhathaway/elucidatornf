@@ -96,12 +96,12 @@ workflow RUN_WGS_PREPROCESS_PF{
         tuple(sid, host1_mmi_path, r1_trim, r2_trim)
     }
 
-    host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
     // map minimap2 to host 1 filter
+     host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
+    // filter by host 1 filter on minimap2
     host1_minimap2_filt_in = host1_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
         tuple(sid, bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
     }
-    // filter by host 1 filter on minimap2
     host1_minimap2_filter_out = HOST1_MINIMAP2_BAM_FILTER_BY_CHROMS(host1_minimap2_filt_in)
 
     // map bwa to host 1 filter
@@ -113,20 +113,92 @@ workflow RUN_WGS_PREPROCESS_PF{
     host1_bwa_filt_in = host1_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
         tuple(sid, bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
     }
-    //host1_bwa_filter_out =
-    HOST1_BWA_BAM_FILTER_BY_CHROMS(host1_bwa_filt_in)
+    host1_bwa_filter_out = HOST1_BWA_BAM_FILTER_BY_CHROMS(host1_bwa_filt_in)
 
     // map minimap2 to host 2 filter
-
+    host2_minimap2_in = host1_bwa_filter_out.map { sid, _kept_r1, _kept_r2, unmapped_r1, unmapped_r2, _chrom_tab, _total_tab ->
+        tuple(sid, host2_mmi_path, unmapped_r1, unmapped_r2)
+    }
+    host2_minimap2_out = HOST2_FILT_MAP_MINIMAP2(host2_minimap2_in)
     // filter by host 2 filter on minimap2
+    host2_minimap2_filt_in = host2_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
+        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, true)
+    }
+    host2_minimap2_filter_out = HOST2_MINIMAP2_BAM_FILTER_BY_CHROMS(host2_minimap2_filt_in)
 
     // map bwa to host 2 filter
-
+    host2_bwa_map_in = host2_minimap2_filter_out.map{sid, _kept_r1, _kept_r2, unmapped_r1, unmapped_r2, _chrom_tab, _total_tab ->
+        tuple(sid, wgs_host2_filter_genome_fasta_fnp, file("${wgs_host2_filter_genome_fasta_fnp}.*"), unmapped_r1, unmapped_r2)
+    }
+    host2_bwa_filter_out = HOST2_FILT_MAP_BWA(host2_bwa_map_in)
     // filter by host 2 filter on bwa
+    host2_bwa_filt_in = host2_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
+        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, false)
+    }
+    host2_bwa_filter_out = HOST2_BWA_BAM_FILTER_BY_CHROMS(host2_bwa_filt_in)
 
     //combine all kept files
+    // kept reads from each pass
+    kept_host1_minimap2 = host1_minimap2_filter_out.map { sid, kept_r1, kept_r2, _unm1, _unm2, _chrom, _total ->
+        tuple(sid, kept_r1, kept_r2)
+    }
+
+    kept_host1_bwa = host1_bwa_filter_out.map { sid, kept_r1, kept_r2, _unm1, _unm2, _chrom, _total ->
+        tuple(sid, kept_r1, kept_r2)
+    }
+
+    kept_host2_minimap2 = host2_minimap2_filter_out.map { sid, kept_r1, kept_r2, _unm1, _unm2, _chrom, _total ->
+        tuple(sid, kept_r1, kept_r2)
+    }
+
+    kept_host2_bwa = host2_bwa_filter_out.map { sid, kept_r1, kept_r2, _unm1, _unm2, _chrom, _total ->
+        tuple(sid, kept_r1, kept_r2)
+    }
+    combine_in =
+    kept_host1_minimap2
+        .join(kept_host1_bwa)        { a, b -> a[0] == b[0] }
+        .join(kept_host2_minimap2)   { a, b -> a[0] == b[0] }
+        .join(kept_host2_bwa)        { a, b -> a[0] == b[0] }
+        .map { row ->
+            /*
+             * After chained joins, `row` becomes a nested structure.
+             * Easiest is to destructure explicitly.
+             *
+             * Expected shapes:
+             *   a = [sid, h1mm_r1, h1mm_r2]
+             *   b = [sid, h1bwa_r1, h1bwa_r2]
+             *   c = [sid, h2mm_r1, h2mm_r2]
+             *   d = [sid, h2bwa_r1, h2bwa_r2]
+             *
+             * The join nesting ends up as:
+             *   [[[a, b], c], d]
+             */
+            def (((a, b), c), d) = row
+
+            def sid = a[0]
+            tuple(
+                sid,
+                a[1], a[2],   // host1 minimap2 kept R1/R2
+                b[1], b[2],   // host1 bwa     kept R1/R2
+                c[1], c[2],   // host2 minimap2 kept R1/R2
+                d[1], d[2]    // host2 bwa     kept R1/R2
+            )
+        }
+
+    combined_kept = COMBINE_KEPT_FILTERED_FASTQS(combine_in)
+    // emits: tuple(sid, sid_kept_R1.fastq.gz, sid_kept_R2.fastq.gz)
 
     // map to final bam
+    final_map_in = combined_kept.map { sid, kept_r1, kept_r2 ->
+        tuple(
+            sid,
+            wgs_final_genome_fasta_fnp,
+            file("${wgs_final_genome_fasta_fnp}.*"),
+            kept_r1,
+            kept_r2
+        )
+    }
 
+    final_bam_out = FINAL_MAP_BWA(final_map_in)
 
 }
