@@ -43,33 +43,16 @@ workflow RUN_WGS_PREPROCESS_PF{
     * Input channel: paired fastqs
     * supports *_1.fastq.gz/_2.fastq.gz and *_R1.fastq.gz/_R2.fastq.gz
     ********************************/
+    def keep_set = null
+    if( params.wgs_samples_keep_file ) {
+        keep_set = new HashSet<String>()
+        new File(params.wgs_samples_keep_file).eachLine { line ->
+            def s = line.trim()
+            if( !s || s.startsWith('#') ) return
+            keep_set.add(s)
+        }
+    }
 
-    // channel
-    //     .fromFilePairs("${input_fastq_dir}/*_{1,2}.fastq.gz", flat: true)
-    //     .mix(
-    //         channel.fromFilePairs("${input_fastq_dir}/*_R{1,2}.fastq.gz", flat: true)
-    //     )
-    //     .mix(
-    //         channel.fromFilePairs("${input_fastq_dir}/*_R{1,2}.fq.gz", flat: true)
-    //     )
-    //     .mix(
-    //         channel.fromFilePairs("${input_fastq_dir}/*_{1,2}.fq.gz", flat: true)
-    //     )
-    //     .map { sid, r1, r2 ->
-    //         /*
-    //         * sid is the common basename from fromFilePairs, e.g. ST131 or ST131_R
-    //         * clean it a bit so:
-    //         *   ST131_1.fastq.gz    -> ST131
-    //         *   ST131_R1.fastq.gz   -> ST131
-    //         */
-    //         def base = sid
-    //                 .replaceAll(/_R?1$/, '')
-    //                 .replaceAll(/_R?2$/, '')
-    //         def sample_id = base
-    //         def final_id  = rename_map.get(sample_id, sample_id)
-    //         tuple(sample_id, final_id, [r1, r2])
-    //     }
-    //     .unique()   // in case patterns overlap
     def fastp_trim_info_dir = file("${output_dir}/fastp_and_filter_info")
     fastp_trim_info_dir.mkdirs()
     channel
@@ -77,6 +60,10 @@ workflow RUN_WGS_PREPROCESS_PF{
             "${input_fastq_dir}/*_{R,}{1,2}*.{fq,fastq}.gz",
             flat: true
         )
+        .filter { sid, _r1, _r2 ->
+            // if no keep file, keep everything
+            keep_set == null || keep_set.contains(sid)
+        }
         .map { sid, r1, r2 ->
             /*
             * sid examples produced by fromFilePairs:
