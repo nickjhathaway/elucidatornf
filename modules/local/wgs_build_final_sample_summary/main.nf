@@ -47,21 +47,23 @@ process WGS_BUILD_FINAL_SAMPLE_SUMMARY {
   fi
 
   # ---- final BAM primary mapped ----
-  bam_total=\$(awk 'NR==1{print \$1+0}' "${flagstat_txt}")
-  bam_primary=\$(awk '/ primary mapped /{print \$1+0; exit}' "${flagstat_txt}")
+  bam_primary_mapped=\$(awk '/ primary mapped /{print \$1+0; exit}' "${flagstat_txt}")
+  bam_properly_paired=\$(awk '/ properly paired /{print \$1+0; exit}' "${flagstat_txt}")
 
-  bam_primary_pct="NA"
-  if [ "\$bam_total" -gt 0 ]; then
-    bam_primary_pct=\$(awk -v a="\$bam_primary" -v b="\$bam_total" 'BEGIN{printf "%.4f", (100.0*a)/b}')
+  bam_primary_mapped_pct="NA"
+  bam_properly_paired_pct="NA"
+  if [ "\$host_kept_pairs" -gt 0 ]; then
+    bam_primary_mapped_pct=\$(awk -v a="\$bam_primary_mapped" -v b="\$host_kept_pairs" 'BEGIN{printf "%.4f", (100.0*a)/b}')
+    bam_properly_paired_pct=\$(awk -v a="\$bam_properly_paired" -v b="\$host_kept_pairs" 'BEGIN{printf "%.4f", (100.0*a)/b}')
   fi
 
   # ---- write summary ----
   {
-    printf "sample_id\\tfastp_before_reads\\tfastp_after_reads\\tfastp_lost_reads\\thost_filtered_pairs\\thost_filtered_pct_of_fastp_after\\thost_kept_pairs\\thost_kept_pct_of_fastp_after\\tfinal_bam_total_reads\\tfinal_bam_primary_mapped_reads\\tfinal_bam_primary_mapped_pct\\n"
-    printf "%s\\t%d\\t%d\\t%d\\t%d\\t%s\\t%d\\t%s\\t%d\\t%d\\t%s\\n" \\
+    printf "sample_id\\tfastp_before_reads\\tfastp_after_reads\\tfastp_lost_reads\\thost_filtered_pairs\\thost_filtered_pct_of_fastp_after\\thost_kept_pairs\\thost_kept_pct_of_fastp_after\\tfinal_bam_primary_mapped_reads\\tfinal_bam_primary_mapped_pct\\tfinal_bam_properly_paired_mapped_reads\\tfinal_bam_properly_paired_mapped_pct\\n"
+    printf "%s\\t%d\\t%d\\t%d\\t%d\\t%s\\t%d\\t%s\\t%d\\t%s\\t%d\\t%s\\n" \\
       "${sample_id}" "\$before_reads" "\$after_reads" "\$fastp_lost" \\
       "\$host_filtered_pairs" "\$host_filtered_pct" "\$host_kept_pairs" "\$host_kept_pct" \\
-      "\$bam_total" "\$bam_primary" "\$bam_primary_pct"
+      "\$bam_primary_mapped" "\$bam_primary_mapped_pct" "\$bam_properly_paired" "\$bam_properly_paired_pct"
   } | gzip -c > ${sample_id}_final_summary.tsv.gz
   """
 }
