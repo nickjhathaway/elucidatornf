@@ -100,7 +100,7 @@ workflow RUN_WGS_PREPROCESS_PF{
      host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
     // filter by host 1 filter on minimap2
     host1_minimap2_filt_in = host1_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
-        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
+        tuple(sid, "host1_minimap2_filt", bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
     }
     host1_minimap2_filter_out = HOST1_MINIMAP2_BAM_FILTER_BY_CHROMS(host1_minimap2_filt_in)
 
@@ -111,7 +111,7 @@ workflow RUN_WGS_PREPROCESS_PF{
     host1_bwa_filter_out = HOST1_FILT_MAP_BWA(host1_bwa_map_in)
     // filter by host 1 filter on bwa
     host1_bwa_filt_in = host1_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
-        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
+        tuple(sid, "host1_bwa_filt", bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
     }
     host1_bwa_filter_out = HOST1_BWA_BAM_FILTER_BY_CHROMS(host1_bwa_filt_in)
 
@@ -122,7 +122,7 @@ workflow RUN_WGS_PREPROCESS_PF{
     host2_minimap2_out = HOST2_FILT_MAP_MINIMAP2(host2_minimap2_in)
     // filter by host 2 filter on minimap2
     host2_minimap2_filt_in = host2_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
-        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, true)
+        tuple(sid, "host2_minimap2_filt", bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, true)
     }
     host2_minimap2_filter_out = HOST2_MINIMAP2_BAM_FILTER_BY_CHROMS(host2_minimap2_filt_in)
 
@@ -133,7 +133,7 @@ workflow RUN_WGS_PREPROCESS_PF{
     host2_bwa_filter_out = HOST2_FILT_MAP_BWA(host2_bwa_map_in)
     // filter by host 2 filter on bwa
     host2_bwa_filt_in = host2_bwa_filter_out.map{sid, bam_fnp, bam_bai_fnp ->
-        tuple(sid, bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, false)
+        tuple(sid, "host2_bwa_filt", bam_fnp, bam_bai_fnp, wgs_host2_filter_contigs_fnp, false)
     }
     host2_bwa_filter_out = HOST2_BWA_BAM_FILTER_BY_CHROMS(host2_bwa_filt_in)
 
@@ -181,9 +181,6 @@ workflow RUN_WGS_PREPROCESS_PF{
                     byTag['h2_bwa'][1], byTag['h2_bwa'][2]
                 )
             }
-
-
-
     combined_kept = COMBINE_KEPT_FILTERED_FASTQS(combine_in)
     // emits: tuple(sid, sid_kept_R1.fastq.gz, sid_kept_R2.fastq.gz)
 
