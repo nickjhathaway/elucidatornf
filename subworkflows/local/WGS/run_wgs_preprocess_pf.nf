@@ -155,36 +155,31 @@ workflow RUN_WGS_PREPROCESS_PF{
         tuple(sid, kept_r1, kept_r2)
     }
     combine_in =
-    kept_host1_minimap2
-        .join(kept_host1_bwa)        { a, b -> a[0] == b[0] }
-        .join(kept_host2_minimap2)   { a, b -> a[0] == b[0] }
-        .join(kept_host2_bwa)        { a, b -> a[0] == b[0] }
-        .map { row ->
-            /*
-             * After chained joins, `row` becomes a nested structure.
-             * Easiest is to destructure explicitly.
-             *
-             * Expected shapes:
-             *   a = [sid, h1mm_r1, h1mm_r2]
-             *   b = [sid, h1bwa_r1, h1bwa_r2]
-             *   c = [sid, h2mm_r1, h2mm_r2]
-             *   d = [sid, h2bwa_r1, h2bwa_r2]
-             *
-             * The join nesting ends up as:
-             *   [[[a, b], c], d]
-             */
-            def (((a, b), c), d) = row
+        kept_host1_minimap2
+            .join(kept_host1_bwa)        { a, b -> a[0] == b[0] }
+            .join(kept_host2_minimap2)   { a, b -> a[0] == b[0] }
+            .join(kept_host2_bwa)        { a, b -> a[0] == b[0] }
+            .map { row ->
 
-            def sid = a[0]
-            tuple(
-                sid,
-                a[1], a[2],   // host1 minimap2 kept R1/R2
-                b[1], b[2],   // host1 bwa     kept R1/R2
-                c[1], c[2],   // host2 minimap2 kept R1/R2
-                d[1], d[2]    // host2 bwa     kept R1/R2
-            )
-        }
+                def ab_c = row[0]      // [[a,b], c]
+                def d    = row[1]      // d
 
+                def ab = ab_c[0]       // [a, b]
+                def c  = ab_c[1]       // c
+
+                def a  = ab[0]         // host1 minimap2
+                def b  = ab[1]         // host1 bwa
+
+                def sid = a[0]
+
+                tuple(
+                    sid,
+                    a[1], a[2],   // host1 minimap2 kept R1/R2
+                    b[1], b[2],   // host1 bwa     kept R1/R2
+                    c[1], c[2],   // host2 minimap2 kept R1/R2
+                    d[1], d[2]    // host2 bwa     kept R1/R2
+                )
+            }
     combined_kept = COMBINE_KEPT_FILTERED_FASTQS(combine_in)
     // emits: tuple(sid, sid_kept_R1.fastq.gz, sid_kept_R2.fastq.gz)
 
