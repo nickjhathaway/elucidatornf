@@ -154,32 +154,29 @@ workflow RUN_WGS_PREPROCESS_PF{
     kept_host2_bwa = host2_bwa_filter_out.map { sid, kept_r1, kept_r2, _unm1, _unm2, _chrom, _total ->
         tuple(sid, kept_r1, kept_r2)
     }
+    all_kept =
+        channel.of(
+            kept_host1_minimap2.map { sid, r1, r2 -> tuple(sid, 'h1_mm', r1, r2) },
+            kept_host1_bwa.map      { sid, r1, r2 -> tuple(sid, 'h1_bwa', r1, r2) },
+            kept_host2_minimap2.map { sid, r1, r2 -> tuple(sid, 'h2_mm', r1, r2) },
+            kept_host2_bwa.map      { sid, r1, r2 -> tuple(sid, 'h2_bwa', r1, r2) }
+        ).flatten()
+
     combine_in =
-        kept_host1_minimap2
-            .join(kept_host1_bwa)        { a, b -> a[0] == b[0] }
-            .join(kept_host2_minimap2)   { a, b -> a[0] == b[0] }
-            .join(kept_host2_bwa)        { a, b -> a[0] == b[0] }
-            .map { row ->
-
-                def ab_c = row[0]      // [[a,b], c]
-                def d    = row[1]      // d
-
-                def ab = ab_c[0]       // [a, b]
-                def c  = ab_c[1]       // c
-
-                def a  = ab[0]         // host1 minimap2
-                def b  = ab[1]         // host1 bwa
-
-                def sid = a[0]
+        all_kept
+            .groupTuple()
+            .map { sid, records ->
+                def byTag = records.collectEntries {it -> [ it[0], it ] }
 
                 tuple(
                     sid,
-                    a[1], a[2],   // host1 minimap2 kept R1/R2
-                    b[1], b[2],   // host1 bwa     kept R1/R2
-                    c[1], c[2],   // host2 minimap2 kept R1/R2
-                    d[1], d[2]    // host2 bwa     kept R1/R2
+                    byTag.h1_mm[1],  byTag.h1_mm[2],
+                    byTag.h1_bwa[1], byTag.h1_bwa[2],
+                    byTag.h2_mm[1],  byTag.h2_mm[2],
+                    byTag.h2_bwa[1], byTag.h2_bwa[2]
                 )
             }
+
     combined_kept = COMBINE_KEPT_FILTERED_FASTQS(combine_in)
     // emits: tuple(sid, sid_kept_R1.fastq.gz, sid_kept_R2.fastq.gz)
 
