@@ -16,6 +16,7 @@ include { BAM_FILTER_BY_CHROMS as HOST2_MINIMAP2_BAM_FILTER_BY_CHROMS} from '../
 include { BAM_FILTER_BY_CHROMS as HOST2_BWA_BAM_FILTER_BY_CHROMS} from '../../../modules/local/bam_filter_by_chroms'
 
 include { COMBINE_KEPT_FILTERED_FASTQS } from '../../../modules/local/combine_kept_filtered_fastqs'
+include { COMBINE_KEPT_FILTERED_COUNTS } from '../../../modules/local/combine_kept_filtered_fastqs'
 
 
 
@@ -68,6 +69,8 @@ workflow RUN_WGS_PREPROCESS_PF{
     //         tuple(sample_id, final_id, [r1, r2])
     //     }
     //     .unique()   // in case patterns overlap
+    def fastp_trim_info_dir = file("${output_dir}/fastp_and_filter_info")
+    fastp_trim_info_dir.mkdirs()
     channel
         .fromFilePairs(
             "${input_fastq_dir}/*_{R,}{1,2}*.{fq,fastq}.gz",
@@ -93,7 +96,7 @@ workflow RUN_WGS_PREPROCESS_PF{
         }
         .filter { _sample_id, _final_id, _reads, skip -> !skip }
         .map { _sample_id, final_id, reads, _skip ->
-            tuple(final_id, reads)
+            tuple(final_id, reads, fastp_trim_info_dir)
         }
         .set { READS_CH }
 
@@ -108,13 +111,15 @@ workflow RUN_WGS_PREPROCESS_PF{
     def host2_mmi_path = file(host2_mmi)
 
 
+
+
     trimmed_ch = FASTP_TRIM(READS_CH)
     host1_minimap2_in = trimmed_ch.map { sid, r1_trim, r2_trim, _json ->
         tuple(sid, host1_mmi_path, r1_trim, r2_trim)
     }
 
     // map minimap2 to host 1 filter
-     host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
+    host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
     // filter by host 1 filter on minimap2
     host1_minimap2_filt_in = host1_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
         tuple(sid, "host1_minimap2_filt", bam_fnp, bam_bai_fnp, wgs_host1_filter_contigs_fnp, true)
@@ -201,6 +206,50 @@ workflow RUN_WGS_PREPROCESS_PF{
     combined_kept = COMBINE_KEPT_FILTERED_FASTQS(combine_in)
     // emits: tuple(sid, sid_kept_R1.fastq.gz, sid_kept_R2.fastq.gz)
 
+    //combine the filtered counts
+    filt_counts_host1_minimap2 = host1_minimap2_filter_out.map { sid, _kept_r1, _kept_r2, _unm1, _unm2, chrom, total ->
+        tuple(sid, chrom, total)
+    }
+
+    filt_counts_host1_bwa = host1_bwa_filter_out.map { sid, _kept_r1, _kept_r2, _unm1, _unm2, chrom, total ->
+        tuple(sid, chrom, total)
+    }
+
+    filt_counts_host2_minimap2 = host2_minimap2_filter_out.map { sid, _kept_r1, _kept_r2, _unm1, _unm2, chrom, total ->
+        tuple(sid, chrom, total)
+    }
+
+    filt_counts_host2_bwa = host2_bwa_filter_out.map { sid, _kept_r1, _kept_r2, _unm1, _unm2, chrom, total ->
+        tuple(sid, chrom, total)
+    }
+    filt_counts_host1_minimap2_tagged = filt_counts_host1_minimap2.map { sid, chrom, total -> tuple(sid, 'h1_mm',  chrom, total) }
+    filt_counts_host1_bwa_tagged      = filt_counts_host1_bwa.map      { sid, chrom, total -> tuple(sid, 'h1_bwa', chrom, total) }
+    filt_counts_host2_minimap2_tagged = filt_counts_host2_minimap2.map { sid, chrom, total -> tuple(sid, 'h2_mm',  chrom, total) }
+    filt_counts_host2_bwa_tagged      = filt_counts_host2_bwa.map      { sid, chrom, total -> tuple(sid, 'h2_bwa', chrom, total) }
+
+    all_filt_counts =
+        filt_counts_host1_minimap2_tagged
+            .mix(filt_counts_host1_bwa_tagged)
+            .mix(filt_counts_host2_minimap2_tagged)
+            .mix(filt_counts_host2_bwa_tagged)
+
+    // group by sample_id; each record is [tag, chrom, total]
+    combine_filt_counts_in =
+        all_filt_counts
+            .map { sid, tag, chrom, total -> tuple(sid, [tag, chrom, total]) }
+            .groupTuple(size: 4)
+            .map { sid, recs ->
+                def byTag = recs.collectEntries { r -> [(r[0]): r] }
+                tuple(
+                    sid, fastp_trim_info_dir,
+                    byTag['h1_mm'][1],  byTag['h1_mm'][2],
+                    byTag['h1_bwa'][1], byTag['h1_bwa'][2],
+                    byTag['h2_mm'][1],  byTag['h2_mm'][2],
+                    byTag['h2_bwa'][1], byTag['h2_bwa'][2]
+                )
+            }
+    COMBINE_KEPT_FILTERED_COUNTS(combine_filt_counts_in)
+
     // map to final bam
     final_map_in = combined_kept.map { sid, kept_r1, kept_r2 ->
         tuple(
@@ -212,6 +261,6 @@ workflow RUN_WGS_PREPROCESS_PF{
         )
     }
 
-    final_bam_out = FINAL_MAP_BWA(final_map_in)
+    FINAL_MAP_BWA(final_map_in)
 
 }

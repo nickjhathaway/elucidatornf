@@ -4,14 +4,16 @@ process FASTP_TRIM {
     tag "${sample_id}_fastp_trimming"
     label 'process_medium_low_memory'
 
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "*.json.gz"
+
     input:
-    tuple val(sample_id), path(reads)
+    tuple val(sample_id), path(reads), val(pub_dir)
 
     output:
     tuple val(sample_id),
           path ("trimmed_${sample_id}_R1.fastq.gz"),
           path("trimmed_${sample_id}_R2.fastq.gz"),
-          path("${sample_id}.fastp.json")
+          path("${sample_id}.fastp.json.gz")
 
     script:
     def (r1, r2) = reads
@@ -41,6 +43,6 @@ process FASTP_TRIM {
       --thread ${task.cpus} \\
       --json "${sample_id}.fastp.json" \\
       --html "${sample_id}.fastp.html"
-
+    pigz -p ${task.cpus} "${sample_id}.fastp.json"
     """
 }
