@@ -27,7 +27,7 @@ process BAM_FILTER_BY_CHROMS {
     elucidator BamFilterByChroms \\
         --chroms "${host_chroms}" \\
         ${any_mate_flag} \\
-        --minMappingQuality ${params.host_filter_min_mapq} \\
+        --minMappingQuality ${params.wgs_host_filter_min_mapq} \\
         ${filter_with_unmapped_mate_flag} \\
         --doNotWriteFilterOff \\
         ${unmapped_flag} \\
