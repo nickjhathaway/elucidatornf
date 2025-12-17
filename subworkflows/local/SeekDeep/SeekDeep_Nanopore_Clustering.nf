@@ -56,20 +56,27 @@ EOF
 
 workflow NANOPORE_AMPLICON_CLUSTERING {
     take:
-    input_fastq_dir //a directory with all fastqs to be analyzed
-    primers_fnp  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
-    genome_dir  // a directory with genomes
-    gff_dir // a directory with annotation gff files
+    input_fastq_dir_raw //a directory with all fastqs to be analyzed
+    primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
+    genome_dir_raw  // a directory with genomes
+    gff_dir_raw // a directory with annotation gff files
     primers_errors_allowed // errors to allow in primers
-    meta_fnp //a sample meta file
-    output_dir // the output directory
+    meta_fnp_raw //a sample meta file
+    output_dir_raw // the output directory
     main:
 
-
+    // convert into file type objects
+    genome_dir = file(genome_dir_raw)
+    primers_fnp = file(primers_fnp_raw)
+    input_fastq_dir = file(input_fastq_dir_raw)
+    gff_dir = file(gff_dir_raw)
+    meta_fnp = file(meta_fnp_raw)
+    output_dir = file(output_dir_raw)
     //
     // Set up for validation
     //
     errors = []
+
 
     // Map from internal var -> CLI-style name (for messages)
     required_params = [
@@ -84,7 +91,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     inputs = [
         input_fastq_dir : input_fastq_dir,
         primers_fnp     : primers_fnp,
-        genome_dir      : genome_dir,
+        genome_dir      : genome_dir_raw,
         gff_dir         : gff_dir,
         output_dir      : output_dir
     ]
