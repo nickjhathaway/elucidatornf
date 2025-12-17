@@ -38,10 +38,17 @@ create_dt <- function(x){
     DT::datatable(x,
                 extensions = 'Buttons',
                 options = list(dom = 'Blfrtip',
-                                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                                buttons = list('copy', 'csv', list(extend = 'excel', title = NULL), 'pdf', 'print'),
+                               # buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                               pageLength = 25,
                                 lengthMenu = list(c(10,25,50,-1),
-                                                    c(10,25,50,"All"))),
-                filter = "top")
+                                                    c(10,25,50,"All")),
+                paging = TRUE,
+                scrollY = "60vh",
+                scrollCollapse = TRUE),
+                filter = "top",
+                class = "display"
+  )
 }
 
 ```

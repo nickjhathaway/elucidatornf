@@ -9,8 +9,22 @@ workflow {
 
 main:
     // Validate inputs
-    if (params.input_fastq_dir == null  || params.primers_fnp == null || params.genome_dir == null || params.gff_dir == null || params.outdir == null) {
-        error "flags '--input_fastq_dir', '--primers_fnp', '--genome_dir', '--outdir', and '--gff_dir' must be specified!"
+    def required_params = [
+        input_fastq_dir : '--input_fastq_dir',
+        primers_fnp     : '--primers_fnp',
+        genome_dir      : '--genome_dir',
+        gff_dir         : '--gff_dir',
+        outdir          : '--outdir'
+    ]
+
+    def missing = required_params.findAll { key, _flag -> params[key] == null }
+
+    if (!missing.isEmpty()) {
+        def missing_list = missing.collect {it -> it.value }.join('\n  ')
+        error """
+Missing required parameters:
+  ${missing_list}
+"""
     }
 
     // Create output directory if not exists and overwrite if it does
