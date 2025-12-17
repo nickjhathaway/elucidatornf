@@ -42,32 +42,49 @@ workflow RUN_WGS_PREPROCESS_PF{
     * supports *_1.fastq.gz/_2.fastq.gz and *_R1.fastq.gz/_R2.fastq.gz
     ********************************/
 
+    // channel
+    //     .fromFilePairs("${input_fastq_dir}/*_{1,2}.fastq.gz", flat: true)
+    //     .mix(
+    //         channel.fromFilePairs("${input_fastq_dir}/*_R{1,2}.fastq.gz", flat: true)
+    //     )
+    //     .mix(
+    //         channel.fromFilePairs("${input_fastq_dir}/*_R{1,2}.fq.gz", flat: true)
+    //     )
+    //     .mix(
+    //         channel.fromFilePairs("${input_fastq_dir}/*_{1,2}.fq.gz", flat: true)
+    //     )
+    //     .map { sid, r1, r2 ->
+    //         /*
+    //         * sid is the common basename from fromFilePairs, e.g. ST131 or ST131_R
+    //         * clean it a bit so:
+    //         *   ST131_1.fastq.gz    -> ST131
+    //         *   ST131_R1.fastq.gz   -> ST131
+    //         */
+    //         def base = sid
+    //                 .replaceAll(/_R?1$/, '')
+    //                 .replaceAll(/_R?2$/, '')
+    //         def sample_id = base
+    //         def final_id  = rename_map.get(sample_id, sample_id)
+    //         tuple(sample_id, final_id, [r1, r2])
+    //     }
+    //     .unique()   // in case patterns overlap
     channel
-        .fromFilePairs("${input_fastq_dir}/*_{1,2}.fastq.gz", flat: true)
-        .mix(
-            channel.fromFilePairs("${input_fastq_dir}/*_R{1,2}.fastq.gz", flat: true)
-        )
-        .mix(
-            channel.fromFilePairs("${input_fastq_dir}/*_R{1,2}.fq.gz", flat: true)
-        )
-        .mix(
-            channel.fromFilePairs("${input_fastq_dir}/*_{1,2}.fq.gz", flat: true)
+        .fromFilePairs(
+            "${input_fastq_dir}/*_{R,}{1,2}*.{fq,fastq}.gz",
+            flat: true
         )
         .map { sid, r1, r2 ->
             /*
-            * sid is the common basename from fromFilePairs, e.g. ST131 or ST131_R
-            * clean it a bit so:
-            *   ST131_1.fastq.gz    -> ST131
-            *   ST131_R1.fastq.gz   -> ST131
+            * sid examples produced by fromFilePairs:
+            *   PAT-020
+            *   PAT-025
+            *   S3_WGS-batchD_8045353103-ST170_S19
             */
-            def base = sid
-                    .replaceAll(/_R?1$/, '')
-                    .replaceAll(/_R?2$/, '')
-            def sample_id = base
+            def sample_id = sid
             def final_id  = rename_map.get(sample_id, sample_id)
             tuple(sample_id, final_id, [r1, r2])
         }
-        .unique()   // in case patterns overlap
+        .unique()
         .map { sample_id, final_id, reads ->
             // Skip if final BAM exists and skip_existing is true
             def final_bam = file("${output_dir}/${final_id}.sorted.bam")
