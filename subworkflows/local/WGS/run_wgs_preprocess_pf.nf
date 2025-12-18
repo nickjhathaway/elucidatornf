@@ -36,7 +36,7 @@ process WRITE_FASTP_FAILURE_LIST {
 
     script:
     """
-    DATE=\$(date +%Y%m%d)
+    DATE=\$(date +%Y-%m-%d_%H-%M)
     OUT=\${DATE}_failed_fastp_samples.txt
 
     printf "%s\n" ${sample_ids.join(' ')} | tr ' ' '\\n' > \$OUT
@@ -111,7 +111,7 @@ workflow RUN_WGS_PREPROCESS_PF{
         }
         .set { READS_CH }
 
-    // set up paths for minimap2 index files 
+    // set up paths for minimap2 index files
     def host1_mmi = wgs_host1_filter_genome_fasta_fnp
         .toString()
         .replaceFirst(/\.(fa|fasta|fna)(\.gz)?$/, '.mmi')
