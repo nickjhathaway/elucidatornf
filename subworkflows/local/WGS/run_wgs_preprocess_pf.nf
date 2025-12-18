@@ -131,9 +131,9 @@ workflow RUN_WGS_PREPROCESS_PF{
         .filter { _sid, status ->
             status.text.trim().startsWith('FAIL')
         }
-        .map { sid, _status -> tuple(sid, fastp_trim_info_dir.toString() ) }
+        .map { sid, _status -> sid }
 
-    WRITE_FASTP_FAILURE_LIST(fastp_failed_ch)
+    WRITE_FASTP_FAILURE_LIST(fastp_failed_ch, fastp_trim_info_dir.toString())
 
     host1_minimap2_in = trimmed_ch.map { sid, r1_trim, r2_trim, _json ->
         tuple(sid, host1_mmi_path, r1_trim, r2_trim)
