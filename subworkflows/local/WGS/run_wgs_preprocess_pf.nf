@@ -25,18 +25,19 @@ process WRITE_FASTP_FAILURE_LIST {
 
     tag "write_fastp_failures"
     label 'process_single'
+    publishDir "${outdir}", mode: 'copy', overwrite: true, pattern: "*_failed_fastp_samples.txt"
 
     input:
     val(sample_ids)
     val(outdir)
 
     output:
-    path("${outdir}/*_failed_fastp_samples.txt")
+    path("*_failed_fastp_samples.txt")
 
     script:
     """
     DATE=\$(date +%Y%m%d)
-    OUT=${outdir}/\${DATE}_failed_fastp_samples.txt
+    OUT=\${DATE}_failed_fastp_samples.txt
 
     printf "%s\n" ${sample_ids.join(' ')} | tr ' ' '\\n' > \$OUT
     """
