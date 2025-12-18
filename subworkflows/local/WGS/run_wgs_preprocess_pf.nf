@@ -21,6 +21,28 @@ include { COMBINE_KEPT_FILTERED_COUNTS } from '../../../modules/local/combine_ke
 include { WGS_BUILD_FINAL_SAMPLE_SUMMARY } from "../../../modules/local/wgs_build_final_sample_summary"
 
 
+process WRITE_FASTP_FAILURE_LIST {
+
+    tag "write_fastp_failures"
+    label 'process_single'
+
+    input:
+    val(sample_ids)
+    val(outdir)
+
+    output:
+    path("${outdir}/*_failed_fastp_samples.txt")
+
+    script:
+    """
+    DATE=\$(date +%Y%m%d)
+    OUT=${outdir}/\${DATE}_failed_fastp_samples.txt
+
+    printf "%s\n" ${sample_ids.join(' ')} | tr ' ' '\\n' > \$OUT
+    """
+}
+
+
 workflow RUN_WGS_PREPROCESS_PF{
     take:
     input_fastq_dir //a directory with all fastqs to be analyzed
@@ -101,7 +123,17 @@ workflow RUN_WGS_PREPROCESS_PF{
 
 
 
-    trimmed_ch = FASTP_TRIM(READS_CH)
+    // trimmed_ch = FASTP_TRIM(READS_CH)
+    trimmed_ch = FASTP_TRIM(READS_CH).trimmed
+    fastp_status_ch = FASTP_TRIM(READS_CH).status
+    fastp_failed_ch = fastp_status_ch
+        .filter { _sid, status ->
+            status.text.trim().startsWith('FAIL')
+        }
+        .map { sid, _status -> tuple(sid, fastp_trim_info_dir.toString() ) }
+
+    WRITE_FASTP_FAILURE_LIST(fastp_failed_ch)
+
     host1_minimap2_in = trimmed_ch.map { sid, r1_trim, r2_trim, _json ->
         tuple(sid, host1_mmi_path, r1_trim, r2_trim)
     }
