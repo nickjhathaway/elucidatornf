@@ -28,8 +28,8 @@ process WRITE_FASTP_FAILURE_LIST {
     publishDir "${outdir}", mode: 'copy', overwrite: true, pattern: "*_failed_fastp_samples.txt"
 
     input:
-    val(sample_ids)
-    val(outdir)
+    tuple val(sample_ids), val(outdir)
+
 
     output:
     path("*_failed_fastp_samples.txt")
@@ -111,6 +111,7 @@ workflow RUN_WGS_PREPROCESS_PF{
         }
         .set { READS_CH }
 
+    // set up paths for minimap2 index files 
     def host1_mmi = wgs_host1_filter_genome_fasta_fnp
         .toString()
         .replaceFirst(/\.(fa|fasta|fna)(\.gz)?$/, '.mmi')
@@ -121,26 +122,29 @@ workflow RUN_WGS_PREPROCESS_PF{
         .replaceFirst(/\.(fa|fasta|fna)(\.gz)?$/, '.mmi')
     def host2_mmi_path = file(host2_mmi)
 
-
-
-
-    // trimmed_ch = FASTP_TRIM(READS_CH)
+    // run fastp
     fastp_ch = FASTP_TRIM(READS_CH)
     trimmed_ch = fastp_ch.trimmed
+
+    // write out failed samples if any
     fastp_status_ch = fastp_ch.status
     fastp_failed_ch = fastp_status_ch
-        .filter { _sid, status ->
-            status.text.trim().startsWith('FAIL')
-        }
+        .filter { _sid, status -> status.text.trim().startsWith('FAIL') }
         .map { sid, _status -> sid }
 
-    WRITE_FASTP_FAILURE_LIST(fastp_failed_ch, fastp_trim_info_dir.toString())
+    // Make a single list per run; only run the writer if list is non-empty
+    fastp_failed_list_in =
+        fastp_failed_ch
+            .collect()
+            .filter { ids -> ids && ids.size() > 0 }
+            .map { ids -> tuple(ids, fastp_trim_info_dir.toString()) }
 
+    WRITE_FASTP_FAILURE_LIST(fastp_failed_list_in)
+
+    // map minimap2 to host 1 filter
     host1_minimap2_in = trimmed_ch.map { sid, r1_trim, r2_trim, _json ->
         tuple(sid, host1_mmi_path, r1_trim, r2_trim)
     }
-
-    // map minimap2 to host 1 filter
     host1_minimap2_out = HOST1_FILT_MAP_MINIMAP2(host1_minimap2_in)
     // filter by host 1 filter on minimap2
     host1_minimap2_filt_in = host1_minimap2_out.map{sid, bam_fnp, bam_bai_fnp ->
