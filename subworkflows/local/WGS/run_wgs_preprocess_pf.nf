@@ -124,8 +124,9 @@ workflow RUN_WGS_PREPROCESS_PF{
 
 
     // trimmed_ch = FASTP_TRIM(READS_CH)
-    trimmed_ch = FASTP_TRIM(READS_CH).trimmed
-    fastp_status_ch = FASTP_TRIM(READS_CH).status
+    fastp_ch = FASTP_TRIM(READS_CH)
+    trimmed_ch = fastp_ch.trimmed
+    fastp_status_ch = fastp_ch.status
     fastp_failed_ch = fastp_status_ch
         .filter { _sid, status ->
             status.text.trim().startsWith('FAIL')
