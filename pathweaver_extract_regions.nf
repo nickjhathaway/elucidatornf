@@ -24,9 +24,13 @@ main:
 
     // Create output directory if not exists and overwrite if it does
     def results_dir_obj = file(params.outdir)
-    if (results_dir_obj.exists()){
+    if (params.pw_overwrite_dir && results_dir_obj.exists()){
         results_dir_obj.deleteDir()
+    } else if (file("${results_dir_obj}/pipeline_info").exists()){
+        //if the output does exist and are not overwirte, do remove the pipeline run info so the new run time info is logged
+        file("${results_dir_obj}/pipeline_info").deleteDir()
     }
+
     results_dir_obj.mkdirs()
     if(params.primers_fnp == null && params.pw_bed_fnp == null && params.pw_seqs_table == null && params.pw_gene_ids == null){
         error "at least one of the following flags '--primers_fnp' , '--pw_seqs_table', '--pw_gene_ids' or '--pw_bed_fnp' must be specified!"

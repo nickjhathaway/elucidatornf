@@ -61,9 +61,11 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
             file("${bed_fnp}"),
             file("${genome_fnp}").getParent(),
             file("${genome_fnp}").getBaseName(),
-            file("${results_dir}").baseName
+            file("${results_dir}").baseName,
+            reports_dir.toString()
         )
     }
+
     // run PathWeaver on each
     EXTRACT_REGION_ASSEMBLIES(input_ch)
 
@@ -164,7 +166,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
             file("${bed_fnp}"),
             file("${genome_fnp}").getParent(),
             file("${genome_fnp}").getBaseName(),
-            file("${results_dir}").baseName
+            file("${results_dir}").baseName,
+            reports_dir.toString()
         )
     }
     // run PathWeaver on each
