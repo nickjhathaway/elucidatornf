@@ -1,4 +1,5 @@
 process GET_SUB_SEGMENTS_FROM_FASTA {
+    tag "${region_id}_get_sub_segments"
     label 'process_low'
 
     input:

@@ -1,4 +1,6 @@
 process AMPLICON_CLUSTER_BY_KMER_SIMILARITY {
+    tag "${sample_name}_${target_name}_cluster_by_kmer_sim"
+    
     label 'process_low'
 
     cpus   { ncpus }

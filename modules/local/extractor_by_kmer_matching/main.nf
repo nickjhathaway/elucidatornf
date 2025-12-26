@@ -1,4 +1,5 @@
 process EXTRACTOR_BY_KMER_MATCHING {
+    tag "${sample_name}_extract_by_kmer_matching"
     label 'process_single'
 
 

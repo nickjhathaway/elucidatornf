@@ -1,4 +1,5 @@
 process AMPLICON_POPULATION_CLUSTERING {
+    tag "${target_name}_pop_clustering"
     label 'process_medium'
 
     cpus   { ncpus }
