@@ -46,7 +46,7 @@ process EXTRACT_REGION_ASSEMBLIES {
         --overWriteDir \\
         --numThreads ${params.pw_ncpus} \\
         ${extra_args}
-    rm ${outdir}/extractionLog.json
-    rm ${outdir}/final/coiCounts.tab.txt
+    rm -f ${outdir}/extractionLog.json
+    rm -f ${outdir}/final/coiCounts.tab.txt
     """
 }
