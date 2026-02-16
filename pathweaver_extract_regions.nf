@@ -29,6 +29,11 @@ main:
     } else if (file("${results_dir_obj}/pipeline_info").exists()){
         //if the output does exist and are not overwirte, do remove the pipeline run info so the new run time info is logged
         file("${results_dir_obj}/pipeline_info").deleteDir()
+        //since the sub regions can change based on the input, have to delete the sub region 
+        sub_region_info_dir = file("${results_dir_obj}/PathWeaverResults/subVarRegions")
+        if(sub_region_info_dir.exists()){
+            sub_region_info_dir.deleteDir()
+        }
     }
 
     results_dir_obj.mkdirs()
