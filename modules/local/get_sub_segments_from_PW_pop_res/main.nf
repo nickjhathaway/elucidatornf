@@ -14,6 +14,8 @@ process GET_SUB_SEGMENTS_FROM_FASTA {
 
     script:
     def genome_fnp = "${genome_dir_fnp}/${primary_genome}.fasta"
+    def extra_args = task.ext.args ? task.ext.args : ''
+
     """
     elucidator createSharedSubSegmentsFromRefSeqs \
         --genome ${genome_fnp} \
@@ -23,7 +25,8 @@ process GET_SUB_SEGMENTS_FROM_FASTA {
         --dout subSegments \
         --overWriteDir \
         --correctionOccurenceCutOff ${correction_occurence_cut_off} \
-        --lowFreqCutOff ${low_freq_cut_off};
+        --lowFreqCutOff ${low_freq_cut_off} \
+        ${extra_args};
 
     # rename files so they have the target_id in them
     cat "subSegments/subRegionInfo/0_ref_variable_expanded_genomic.bed" > "${region_id}_0_ref_variable_expanded_genomic.bed"

@@ -131,8 +131,8 @@ workflow EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES {
                 file("${genome_fnp}").getParent(),
                 file("${genome_fnp}").getBaseName(),
                 tar_name,
-                params.correction_occurence_cut_off,
-                params.low_freq_cut_off
+                params.sub_segments_correction_occurence_cut_off,
+                params.sub_segments_low_freq_cut_off
             )
         }
 
