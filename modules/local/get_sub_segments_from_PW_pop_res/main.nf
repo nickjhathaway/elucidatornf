@@ -29,9 +29,14 @@ process GET_SUB_SEGMENTS_FROM_FASTA {
         ${extra_args};
 
     # rename files so they have the target_id in them
-    cat "subSegments/subRegionInfo/0_ref_variable_expanded_genomic.bed" > "${region_id}_0_ref_variable_expanded_genomic.bed"
-    cat "subSegments/subRegionInfo/0_ref_sharedLocs_genomic.bed" > "${region_id}_0_ref_sharedLocs_genomic.bed"
-    cat "subSegments/subRegionInfo/0_ref_variable_genomic.bed" > "${region_id}_0_ref_variable_genomic.bed"
-
+    if [ -f subSegments/subRegionInfo/0_ref_variable_expanded_genomic.bed ]; then
+        cat "subSegments/subRegionInfo/0_ref_variable_expanded_genomic.bed" > "${region_id}_0_ref_variable_expanded_genomic.bed"
+        cat "subSegments/subRegionInfo/0_ref_sharedLocs_genomic.bed" > "${region_id}_0_ref_sharedLocs_genomic.bed"
+        cat "subSegments/subRegionInfo/0_ref_variable_genomic.bed" > "${region_id}_0_ref_variable_genomic.bed"
+    else
+        touch "${region_id}_0_ref_variable_expanded_genomic.bed"
+        touch "${region_id}_0_ref_sharedLocs_genomic.bed"
+        touch "${region_id}_0_ref_variable_genomic.bed"
+    fi
     """
 }
