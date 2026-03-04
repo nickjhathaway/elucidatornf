@@ -292,6 +292,7 @@ if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
 ```{r}
 #| title: Known mutations frequency and prevalence table
 
+AAChangesInfo_targeted_population_fig_w = 10
 if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
   AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
 
@@ -364,7 +365,6 @@ if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
     filter(AA_cnt > 0) %>%
     select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
     unique()
-  AAChangesInfo_targeted_population_fig_w = n_distinct(paste0(AAChangesInfo_targeted_population$Gene_ID, "-", AAChangesInfo_targeted_population$reference_AA_pos))
   create_dt(AAChangesInfo_targeted_population)
 }
 ```
