@@ -34,9 +34,16 @@ process VARIANT_CALL_ON_HAP_TABLE {
     known_amino_acid_changes_arg="--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
     if [ ! -s "\$(readlink -f ${meta_fnp})" ]; then meta_arg=""; fi
     if [ ! -s "\$(readlink -f ${known_amino_acid_changes_fnp})" ]; then known_amino_acid_changes_arg=""; fi
+
+    # only variant call on the regions supplied by the bed file
+    cut -f4 Pf3D7_inner.bed > regions.txt
+    elucidator tableExtractElementsWithLevels --levels regions.txt \
+        --column p_name --file ${input_results} --delim tab \
+        --header --out extracted_${input_results} --overWrite
+
     SeekDeep variantCallOnSeqAndProtein \
         --genomicLocations ${bedfile_fnp} \
-        --resultsFnp ${input_results} \
+        --resultsFnp extracted_${input_results} \
         --genome ${genome_dir_fnp}/${primary_genome}.fasta \
         --gff ${gff_fnp} \
         \${known_amino_acid_changes_arg} \

@@ -338,3 +338,33 @@ if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
     scale_fill_manual(values = colorPalette_08))
 }
 ```
+
+```{r}
+#| title: Novel mutations within sample info table
+
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted = AAChangesInfo %>%
+    filter(Targeted != "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(-Gene_Transcript_ID, -ExonicFunc, -Mutation_Name, -CoveredBy, -Targeted)
+  create_dt(AAChangesInfo_targeted)
+}
+```
+
+```{r}
+#| title: Novel mutations frequency and prevalence table
+
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted_population = AAChangesInfo %>%
+    filter(Targeted != "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
+    unique()
+  AAChangesInfo_targeted_population_fig_w = n_distinct(paste0(AAChangesInfo_targeted_population$Gene_ID, "-", AAChangesInfo_targeted_population$reference_AA_pos))
+  create_dt(AAChangesInfo_targeted_population)
+}
+```

@@ -276,6 +276,7 @@ Please correct the above issues and re-run.
     CONCATENATE_AMPLICON_POPULATION_CLUSTERING(AMPLICON_POPULATION_CLUSTERING.out.clustering_results | collect, final_results_dir)
 
     if (params.do_variant_calling){
+        
         def variant_call_dir = file("${final_results_dir}/variantCalls")
         def known_amino_acid_changes_fnp = params.empty_file_fnp
         genome_dir_top = genome_dir.getParent()
@@ -284,6 +285,7 @@ Please correct the above issues and re-run.
         }
         def bed_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome.map{loc_dir ->
                 file("${loc_dir}/${params.vc_primary_genome}_inner.bed")}
+
         VARIANT_CALL_ON_HAP_TABLE (
             bed_ch,
             CONCATENATE_AMPLICON_POPULATION_CLUSTERING.out.all_selected_clusters_info,
