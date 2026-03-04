@@ -25,6 +25,8 @@ process VARIANT_CALL_ON_HAP_TABLE {
 
 
     script:
+    def extra_extra_args = task.ext.args ? task.ext.args : ''
+    // todo, fold the above extra_args into extra_extra_args
     // def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--metaFnp ${meta_fnp}"
     // def known_amino_acid_changes_arg = "EMPTY_FILE.txt" == "${known_amino_acid_changes_fnp}" ? "" : "--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
     def getting_pairwise_comps_arg = getting_pairwise_comps ? "--getPairwiseComps" : ""
@@ -56,7 +58,8 @@ process VARIANT_CALL_ON_HAP_TABLE {
         --exportLabIsolateSeqs \
         ${getting_pairwise_comps_arg} \
         ${meta_fields_to_calc_pop_diffs_arg}\
-        ${extra_args}
+        ${extra_args}\
+        ${extra_extra_args}
 
     ln -s variantCalls/reports
     """
