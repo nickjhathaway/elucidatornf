@@ -184,12 +184,12 @@
                     "type": "boolean",
                     "description": "whether to run the sub segment variant determination"
                 },
-                "correction_occurence_cut_off": {
+                "sub_segments_correction_occurence_cut_off": {
                     "type": "integer",
                     "default": 5,
                     "description": "the correction occurrence cut off to use when doing run_sub_segments_determination"
                 },
-                "low_freq_cut_off": {
+                "sub_segments_low_freq_cut_off": {
                     "type": "integer",
                     "default": 5,
                     "description": "the low frequent cut off to use when doing run_sub_segments_determination"
