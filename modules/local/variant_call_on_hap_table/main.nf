@@ -36,7 +36,7 @@ process VARIANT_CALL_ON_HAP_TABLE {
     if [ ! -s "\$(readlink -f ${known_amino_acid_changes_fnp})" ]; then known_amino_acid_changes_arg=""; fi
 
     # only variant call on the regions supplied by the bed file
-    cut -f4 Pf3D7_inner.bed > regions.txt
+    cut -f4 ${bedfile_fnp} > regions.txt
     elucidator tableExtractElementsWithLevels --levels regions.txt \
         --column p_name --file ${input_results} --delim tab \
         --header --out extracted_${input_results} --overWrite
