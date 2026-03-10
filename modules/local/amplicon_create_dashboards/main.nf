@@ -1,4 +1,4 @@
-process AMPLICON_NANOPORE_CREATE_DASHBOARDS{
+process AMPLICON_CREATE_DASHBOARDS{
     label 'process_single'
 
 

@@ -8,7 +8,7 @@ process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
     input:
     path fastq_dir_fnp
     path primers_fnp
-    val technology
+val technology
     val ncpus
     val pub_dir
 

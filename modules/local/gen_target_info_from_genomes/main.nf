@@ -123,11 +123,11 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "${primers_fnp}", saveAs: "primers.tsv"
+    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "primers.tsv"
 
 
     input:
-    path primers_fnp
+    path primers_fnp, name : "primers.tsv"
     val pub_dir
     path genome_dir
     path gff_dir
@@ -140,6 +140,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     path "genome_extraction/locationsByGenome", emit: locations_by_genome
     path "genome_extraction/allExtractionCounts.tab.txt", emit: all_extraction_counts
     path "targets_with_extractions.txt", emit: targets_with_extractions
+    path "primers.tsv", emit: primers
 
     script:
     """
@@ -148,12 +149,12 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
                 --pairedEndLength ${paired_end_length} \
                 --genomeDir ${genome_dir} \
                 --gffDir ${gff_dir} \
-                --dout extraction \
+                --dout genome_extraction \
                 --errors ${errors_allowed} \
                 --numThreads ${ncpus} \
                 --useBlast
-        ln -s extraction/forSeekDeep
-        ln -s extraction/locationsByGenome
+        ln -s genome_extraction/forSeekDeep
+        ln -s genome_extraction/locationsByGenome
         elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
             --delim tab \
             --columnName extractionCounts \

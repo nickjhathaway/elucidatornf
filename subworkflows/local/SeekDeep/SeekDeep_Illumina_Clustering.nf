@@ -4,14 +4,13 @@ nextflow.enable.dsl = 2
 // include { paramsSummaryMap       } from 'plugin/nf-schema'
 
 
-include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE as GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL } from '../../../modules/local/gen_target_info_from_genomes'
-include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE } from '../../../modules/local/gen_target_info_from_genomes'
-include { EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/extractor_by_kmer_matching'
+include { ILLUMINA_EXTRACTOR } from '../../../modules/local/illumina_extractor'
 include { VARIANT_CALL_ON_HAP_TABLE } from '../../../modules/local/variant_call_on_hap_table/main.nf'
-include { CONCATENATE_EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/concatenate_extractor_by_kmer_matching/main.nf'
-include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amplicon_cluster_by_kmer_similarity/main.nf'
+include { CONCATENATE_ILLUMINA_EXTRACTOR } from '../../../modules/local/concatenate_illumina_extractor/main.nf'
+include { AMPLICON_CLUSTER_BY_EXPECTED_ERRORS } from '../../../modules/local/amplicon_cluster_by_expected_errors/main.nf'
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
+include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/gen_target_info_from_genomes/main.nf'
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
 include { WRITE_SAMPLE_NAME_KEY } from "../../../modules/local/write_sample_name_key/main.nf"
@@ -19,13 +18,14 @@ include { WRITE_SAMPLE_NAME_KEY } from "../../../modules/local/write_sample_name
 include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
 
 
-workflow NANOPORE_AMPLICON_CLUSTERING {
+workflow ILLUMINA_AMPLICON_CLUSTERING {
     take:
     input_fastq_dir_raw //a directory with all fastqs to be analyzed
     primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
     genome_dir_raw  // a directory with genomes
     gff_dir_raw // a directory with annotation gff files
     primers_errors_allowed // errors to allow in primers
+    paired_end_length //the paired end length of the input
     meta_fnp_raw //a sample meta file
     output_dir_raw // the output directory
     main:
@@ -49,7 +49,8 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
         primers_fnp     : '--primers_fnp',
         genome_dir      : '--genome_dir',
         gff_dir         : '--gff_dir',
-        output_dir      : '--outdir'
+        output_dir      : '--outdir',
+        illumina_clustering_paired_end_length: "--illumina_clustering_paired_end_length"
     ]
 
     // Map from internal var -> actual value passed to subworkflow
@@ -88,7 +89,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     if (!errors.isEmpty()) {
         def joined = errors.collect {it -> "  - ${it}" }.join("\n")
         error """
-Input validation failed in subworkflow NANOPORE_AMPLICON_CLUSTERING:
+Input validation failed in subworkflow ILLUMINA_AMPLICON_CLUSTERING:
 
 ${joined}
 
@@ -110,12 +111,7 @@ Please correct the above issues and re-run.
     }
     results_dir_obj.mkdirs()
 
-    //
-    // Inner primers logic
-    //
-    if (params.nanopore_extractor_use_inner_primers) {
-        params.nanopore_clustering_lower_base = "upper"
-    }
+
 
     def primer_info_dir = file("${output_dir}/primerInfo")
     primer_info_dir.mkdirs()
@@ -133,44 +129,43 @@ Please correct the above issues and re-run.
 
     primers_fnp_ch = primers_fnp
 
-    if (params.nanopore_extractor_use_inner_primers){
-        def initial_primer_info_dir = file("${output_dir}/primerInfo/initialPrimerInfo")
-        initial_primer_info_dir.mkdirs()
-        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
-        primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
-    }
-    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
 
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.resources.max_cpus, extraction_reports_dir)
+    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, paired_end_length, primers_errors_allowed, params.resources.max_cpus)
 
-    fastq_input_ch = channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
-
-    input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "illumina", params.resources.max_cpus, extraction_reports_dir)
+    //@todo, concatenate lanes if multiple present
+    fastq_input_ch = channel.fromFilePairs(
+        ["${input_fastq_dir}/*_{1,2}{_001,}.fastq{.gz,}",
+        "${input_fastq_dir}/*_{R1,R2}{_001,}.fastq{.gz,}"]
+    )
+    input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
-            .map{fastq_fnp, info_dir, auto_flags_fnp ->
+            .map{sample_id, reads, info_dir, auto_flags_fnp ->
                 tuple(
-                    fastq_fnp,
-                    file(fastq_fnp).name.replaceAll(".fastq.gz", ""),
+                    reads[0],
+                    reads[1],
+                    sample_id,
                     primers_fnp,
-                    file("${info_dir}/allKmers.tab.txt.gz"),
+                    file("${info_dir}/overlapStatuses.txt"),
                     file("${info_dir}/lenCutOffs.txt"),
                     auto_flags_fnp,
-                    params.nanopore_clustering_min_len
                 )
             }
 
-    //extract by kmer sets
-    EXTRACTOR_BY_KMER_MATCHING(input_to_extractor)
+    //illumina extractor
+    ILLUMINA_EXTRACTOR(input_to_extractor)
 
     //concatenate extraction files
-    CONCATENATE_EXTRACTOR_BY_KMER_MATCHING(
-        EXTRACTOR_BY_KMER_MATCHING.out.extraction_profile_per_target | collect,
-        EXTRACTOR_BY_KMER_MATCHING.out.extraction_stats | collect,
+    CONCATENATE_ILLUMINA_EXTRACTOR(
+        ILLUMINA_EXTRACTOR.out.extraction_profile_per_target | collect,
+        ILLUMINA_EXTRACTOR.out.extraction_stats | collect,
+        ILLUMINA_EXTRACTOR.out.failed_primer_counts | collect,
+        ILLUMINA_EXTRACTOR.out.process_pair_counts | collect,
         extraction_reports_dir
     )
 
     //get the targets that have coverage
-    def targets = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.targets_with_extractions
+    def targets = GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.targets_with_extractions
         .splitText()
         .map{samp ->
             samp.trim() // Remove any whitespace
@@ -178,7 +173,7 @@ Please correct the above issues and re-run.
 
 
     // create a list of input to cluster for the input that actually exists
-    def clustered_inputs_with_key = targets.combine(EXTRACTOR_BY_KMER_MATCHING.out.sample_dir)
+    def clustered_inputs_with_key = targets.combine(ILLUMINA_EXTRACTOR.out.sample_dir)
         .map { tar, samp, sampdir ->
 
             def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
@@ -189,7 +184,7 @@ Please correct the above issues and re-run.
 
             // emit BOTH: the clustering tuple + the mapping tuple
             tuple(
-                tuple(extracted_tar_sample_fnp, samp_renamed, tar, params.nanopore_clustering_ncpus),
+                tuple(extracted_tar_sample_fnp, samp_renamed, tar, params.illumina_clustering_error_profile),
                 tuple(samp, samp_renamed)
             )
         }
@@ -208,17 +203,17 @@ Please correct the above issues and re-run.
 
     WRITE_SAMPLE_NAME_KEY(sample_key_lines_ch, meta_info_dir.toString())
     //cluster per target per sample
-    AMPLICON_CLUSTER_BY_KMER_SIMILARITY(input_to_clustering)
+    AMPLICON_CLUSTER_BY_EXPECTED_ERRORS(input_to_clustering)
 
 
-    // Use Groovy to count the files in the directory matching the glob pattern
-    // def fastq_count = file("${input_fastq_dir}/*.fastq.gz").size()
-    // log.info "fastq_count is ${fastq_count}"
-    // Get the count of fastq files
-    // def fastq_count = fastq_files.size()
-    def ref_seqs_dir_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info.map{ seek_deep_info_dir ->
+    // // Use Groovy to count the files in the directory matching the glob pattern
+    // // def fastq_count = file("${input_fastq_dir}/*.fastq.gz").size()
+    // // log.info "fastq_count is ${fastq_count}"
+    // // Get the count of fastq files
+    // // def fastq_count = fastq_files.size()
+    def ref_seqs_dir_ch = GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info.map{ seek_deep_info_dir ->
             file("${seek_deep_info_dir}/refSeqs")}
-    def input_to_population_clustering = AMPLICON_CLUSTER_BY_KMER_SIMILARITY.out.output_results
+    def input_to_population_clustering = AMPLICON_CLUSTER_BY_EXPECTED_ERRORS.out.output_results
         //.groupTuple(by : 1, size: fastq_input_ch.count())
         // .groupTuple(by : 1, size: fastq_count)
         .groupTuple(by : 1)
@@ -227,11 +222,11 @@ Please correct the above issues and re-run.
                 tuple(
                     target_fastqs, // List of fastq files for this target
                     target,
-                    params.nanopore_clustering_ncpus,
+                    params.illumina_clustering_population_ncpus,
                     meta_fnp,
-                    // GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info,
+                    // GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info,
                     ref_seqs_dir,
-                    params.nanopore_clustering_min_sample_read_count
+                    params.illumina_clustering_min_sample_read_count
                 )
         }
     // population clustering
@@ -248,7 +243,7 @@ Please correct the above issues and re-run.
         if(file("${genome_dir_top}/info/drug_resistant_aaPositions.tsv").exists()){
             known_amino_acid_changes_fnp = file("${genome_dir_top}/info/drug_resistant_aaPositions.tsv")
         }
-        def bed_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome.map{loc_dir ->
+        def bed_ch = GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.locations_by_genome.map{loc_dir ->
                 file("${loc_dir}/${params.vc_primary_genome}_inner.bed")}
 
         VARIANT_CALL_ON_HAP_TABLE (
@@ -267,17 +262,17 @@ Please correct the above issues and re-run.
             params.vc_extra_args
         )
         AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),
-            file("${projectDir}/etc/nanopore_clustering_report.qmd"),
+            file("${projectDir}/etc/illumina_clustering_report.qmd"),
             params.nanopore_render_clustering_report,
             VARIANT_CALL_ON_HAP_TABLE.out.reports,
-            CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
+            CONCATENATE_ILLUMINA_EXTRACTOR.out.all_extraction_stats
         )
     } else {
         AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),
-            file("${projectDir}/etc/nanopore_clustering_report.qmd"),
+            file("${projectDir}/etc/illumina_clustering_report.qmd"),
             params.nanopore_render_clustering_report,
             CONCATENATE_AMPLICON_POPULATION_CLUSTERING.out.all_selected_clusters_info,
-            CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
+            CONCATENATE_ILLUMINA_EXTRACTOR.out.all_extraction_stats
         )
     }
 
@@ -288,15 +283,15 @@ Please correct the above issues and re-run.
         if (!outputDir.exists()) {
             outputDir.mkdirs()
         }
-        record_NANOPORE_AMPLICON_CLUSTERING_params()
-        record_NANOPORE_AMPLICON_CLUSTERING_runtime()
+        record_ILLUMINA_AMPLICON_CLUSTERING_params()
+        record_ILLUMINA_AMPLICON_CLUSTERING_runtime()
         completionSummary(false)
     }
-}  //NANOPORE_AMPLICON_CLUSTERING
+}  //ILLUMINA_AMPLICON_CLUSTERING
 
 
 
-def record_NANOPORE_AMPLICON_CLUSTERING_params() {
+def record_ILLUMINA_AMPLICON_CLUSTERING_params() {
     def output = file("${params.outdir}/run/parameters.tsv")
     output.withWriter { writer ->
         params.each { k, v ->
@@ -310,7 +305,7 @@ def record_NANOPORE_AMPLICON_CLUSTERING_params() {
  * Records runtime and environment information and writes summary to a tabulated (tsv) file
  *
  */
-def record_NANOPORE_AMPLICON_CLUSTERING_runtime() {
+def record_ILLUMINA_AMPLICON_CLUSTERING_runtime() {
 
     def output = file("${params.outdir}/run/runtime.tsv")
     output.withWriter { writer ->

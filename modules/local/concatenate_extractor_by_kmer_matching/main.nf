@@ -6,6 +6,7 @@ process CONCATENATE_EXTRACTOR_BY_KMER_MATCHING {
     input:
     path extraction_profile_per_target_fnps
     path extraction_stats_fnps
+
     val pub_dir
 
 
@@ -16,8 +17,8 @@ process CONCATENATE_EXTRACTOR_BY_KMER_MATCHING {
 
     script:
     """
-    elucidator rBind --recursive --contains extractionProfile.tab.txt --delim tab --header --out allExtractionProfile.tsv.gz
-    elucidator rBind --recursive --contains extractionStats.tab.txt --delim tab --header --out allExtractionStats.tsv.gz
+    elucidator rBind --recursive --contains extractionProfile.tab.txt --delim tab --header --out STDOUT | elucidator trimContent --overWrite --file STDIN --delim tab --header --trimAt "(" --out allExtractionProfile.tsv.gz
+    elucidator rBind --recursive --contains extractionStats.tab.txt   --delim tab --header --out STDOUT | elucidator trimContent --overWrite --file STDIN --delim tab --header --trimAt "(" --out allExtractionStats.tsv.gz
 
     elucidator tableExtractCriteria --file allExtractionProfile.tsv.gz --delim tab --header --columnName passed | elucidator printCol --file STDIN --delim tab --header --columnName target --sort --unique --out targets_with_passing_reads.txt
     """

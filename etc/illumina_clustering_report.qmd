@@ -1,0 +1,324 @@
+---
+title: Clustering Reports
+embed-resources: true
+format:
+    dashboard:
+        orientation: columns
+        theme: yeti
+        embed-resources: true
+        dpi: 300
+---
+
+```{r}
+#cran
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(DT)
+library(plotly)
+library(stringr)
+#bioconductor
+library(ComplexHeatmap)
+#github
+library(HaplotypeRainbows)
+
+#install instructions if you don't have the packages above
+##cran
+###install.packages(c('readr', 'ggplot2', 'dplyr', 'tidyr', 'DT', 'htmltools', 'plotly', 'remotes', 'stringr'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
+##bioconductor
+###install.packages("BiocManager")
+###BiocManager::install(ask = FALSE)
+###BiocManager::install("ComplexHeatmap", ask = FALSE)
+##github
+###install.packages(c('remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
+###remotes::install_github('nickjhathaway/HaplotypeRainbows@develop')
+```
+
+```{r}
+create_dt <- function(x){
+    DT::datatable(x,
+                extensions = 'Buttons',
+                options = list(dom = 'Blfrtip',
+                                buttons = list('copy', 'csv', list(extend = 'excel', title = NULL), 'pdf', 'print'),
+                               # buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                               pageLength = 25,
+                                lengthMenu = list(c(10,25,50,-1),
+                                                    c(10,25,50,"All")),
+                paging = TRUE
+                ),
+                filter = "top"
+  )
+}
+
+colorPalette_08 = c("#2271B2","#F748A5","#359B73","#F0E442","#D55E00","#3DB7E9","#E69F00","#000000")
+colorPalette_12 = c("#E20134","#00FCCF","#008DF9","#8400CD","#FFC33B","#9F0162","#009F81","#FF5AAF","#FF6E3A","#00C2F9","#FFB2FD","#A40122")
+colorPalette_15 = c("#F60239","#003C86","#EF0096","#9400E6","#009FFA","#008169","#68023F","#00DCB5","#FFCFE2","#FF71FD","#7CFFFA","#6A0213","#008607","#00E307","#FFDC3D")
+
+# commonly used functions
+`%!in%` <- Negate(`%in%`)
+is.notna <- function(x) {
+  return(!is.na(x))
+}
+# tuning parameters
+cell_w <- 0.25   # inches per column
+cell_h <- 0.25   # inches per row
+
+```
+
+
+```{r}
+sample_name_key = readr::read_tsv("meta/sample_name_key.tsv")
+```
+
+```{r}
+allExtractionStats = readr::read_tsv("extractionReports/allExtractionStats.tsv.gz") %>%
+  left_join(sample_name_key %>%
+              dplyr::rename(sampleName = old_sample_name,
+                            sample_name = new_sample_name)) %>%
+  mutate(sample_name = ifelse(is.na(sample_name), sampleName, sample_name))
+
+allExtractionStats_sample_fig_w <- max(6, n_distinct(allExtractionStats$sample_name) * cell_w)
+
+
+allExtractionProfile = readr::read_tsv("extractionReports/allExtractionProfile.tsv.gz") %>%
+  left_join(sample_name_key %>%
+              dplyr::rename(sampleName = old_sample_name,
+                            sample_name = new_sample_name)) %>%
+  mutate(sample_name = ifelse(is.na(sample_name), sampleName, sample_name))
+
+targets_name_key = tibble()
+if(file.exists("finalResults/variantCalls/reports/info/targetsIntersectingWithGenesInfo.tsv")){
+  targetsIntersectingWithGenesInfo = readr::read_tsv("finalResults/variantCalls/reports/info/targetsIntersectingWithGenesInfo.tsv") %>%
+    mutate(new_target_name = ifelse(is.na(Name), paste0(target, "-", ID), paste0(target, "-", Name)))
+  targets_name_key = targetsIntersectingWithGenesInfo %>%
+    ungroup() %>%
+    select(target, new_target_name) %>%
+    unique() %>%
+    bind_rows(
+      allExtractionProfile %>%
+        select(target) %>%
+        unique() %>%
+        filter(target %!in% targetsIntersectingWithGenesInfo$target) %>%
+        mutate(new_target_name = target)
+    )
+} else {
+  targets_name_key = allExtractionProfile %>%
+        select(target) %>%
+        unique() %>%
+        mutate(new_target_name = target)
+}
+
+allExtractionProfile = allExtractionProfile %>%
+  left_join(targets_name_key)
+
+
+allExtractionProfile_sp = allExtractionProfile %>%
+  filter(new_target_name  != "undetermined") %>%
+  select(sample_name, new_target_name, good) %>%
+  mutate(good = log10(good + 1)) %>%
+  spread(new_target_name, good)
+
+allExtractionProfile_sp_mat = as.matrix(allExtractionProfile_sp[,2:ncol(allExtractionProfile_sp)])
+rownames(allExtractionProfile_sp_mat) = allExtractionProfile_sp$sample_name
+allExtractionProfile_sp_mat_n_rows <- nrow(allExtractionProfile_sp_mat)
+allExtractionProfile_sp_mat_n_cols <- ncol(allExtractionProfile_sp_mat)
+
+
+
+allExtractionProfile_sp_mat_fig_w <- max(6, allExtractionProfile_sp_mat_n_cols * cell_w)
+allExtractionProfile_sp_mat_fig_h <- max(6, allExtractionProfile_sp_mat_n_rows * cell_h)
+
+```
+
+```{r}
+allSelectedClustersInfo = readr::read_tsv("finalResults/allSelectedClustersInfo.tsv.gz") %>%
+  left_join(targets_name_key %>%
+              dplyr::rename(p_name = target))
+
+allSelectedClustersInfo_prep = HaplotypeRainbows::prepForRainbow(allSelectedClustersInfo, targetCol = new_target_name)
+if(nrow(allSelectedClustersInfo) > 1){
+  allSelectedClustersInfo_prep = HaplotypeRainbows::resort_prepped_samples_by_clustering(allSelectedClustersInfo_prep, targetCol = new_target_name)
+}
+allSelectedClustersInfo_plot = HaplotypeRainbows::genRainbowHapPlotObj(allSelectedClustersInfo_prep, targetCol = new_target_name) %>%
+  HaplotypeRainbows::add_haplotype_rainbow_axis_theming(allSelectedClustersInfo_prep, targetCol = new_target_name)
+
+allSelectedClustersInfo_prep_fig_w <- max(6, n_distinct(allSelectedClustersInfo_prep$new_target_name) * cell_w)
+allSelectedClustersInfo_prep_fig_h <- max(6, n_distinct(allSelectedClustersInfo_prep$s_Sample) * cell_h)
+
+
+```
+
+
+## Column
+
+### Row {.tabset height=100%}
+```{r}
+#| title: "Raw read counts"
+#| fig-width: !expr allExtractionStats_sample_fig_w
+
+read_count_colors = c("Total" = colorPalette_08[1], "used" = colorPalette_08[2])
+
+ggplotly(
+  ggplot(allExtractionStats) +
+    geom_col(aes(x = sample_name,
+                 y = Total,
+                 fill = "Total"), color = "black")  +
+    geom_col(aes(x = sample_name,
+                 y = used,
+                 fill = "used"), color = "black") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+    scale_fill_manual(values = read_count_colors) +
+    labs(y = "reads")
+)
+```
+
+
+```{r}
+#| title: "Percent read counts"
+#| fig-width: !expr allExtractionStats_sample_fig_w
+
+ggplotly(
+  ggplot(allExtractionStats %>%
+           mutate(usedFrac = used/Total)) +
+    geom_col(aes(x = sample_name,
+                 y = usedFrac,
+                 fill = "used"), color = "black") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+    scale_fill_manual(values = read_count_colors) +
+    labs(y = "reads") +
+    ylim(0,1)
+)
+```
+
+```{r}
+#| title: "Read counts per samples table"
+create_dt(allExtractionStats)
+```
+
+```{r}
+#| title: "Read counts per targets table"
+create_dt(allExtractionProfile)
+```
+
+
+
+```{r}
+#| title: Extraction target raw counts
+#| fig-width: !expr allExtractionProfile_sp_mat_fig_w
+#| fig-height: !expr allExtractionProfile_sp_mat_fig_h
+
+allExtractionProfile_sp_mat_hp = Heatmap(allExtractionProfile_sp_mat, name = "reads(log10)")
+
+draw(allExtractionProfile_sp_mat_hp,
+     padding = unit(c(35,5,5,5), "mm"))
+```
+
+
+## Column
+
+### Row {.tabset height=80%}
+
+```{r}
+#| title: Haplotype Rainbow plot
+#| fig-width: !expr allSelectedClustersInfo_prep_fig_w
+#| fig-height: !expr allSelectedClustersInfo_prep_fig_h
+
+print(allSelectedClustersInfo_plot)
+```
+
+```{r}
+#| title: Known mutations within sample info table
+
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted = AAChangesInfo %>%
+    filter(Targeted == "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(-Gene_Transcript_ID, -ExonicFunc, -Mutation_Name, -CoveredBy, -Targeted)
+  create_dt(AAChangesInfo_targeted)
+}
+```
+
+```{r}
+#| title: Known mutations frequency and prevalence table
+
+AAChangesInfo_targeted_population_fig_w = 10
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted_population = AAChangesInfo %>%
+    filter(Targeted == "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
+    unique()
+  AAChangesInfo_targeted_population_fig_w = n_distinct(paste0(AAChangesInfo_targeted_population$Gene_ID, "-", AAChangesInfo_targeted_population$reference_AA_pos))
+  create_dt(AAChangesInfo_targeted_population)
+}
+```
+
+```{r}
+#| title: Known mutations prevalence plot
+#| fig-width: !expr AAChangesInfo_targeted_population_fig_w
+
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted= AAChangesInfo %>%
+    filter(Targeted == "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    group_by(Gene, Gene_ID, reference_AA_pos, sample) %>%
+    mutate(genotype = case_when(
+      all(!is_reference) ~ "alt",
+      all(is_reference) ~ "ref",
+      T ~ "mixed"
+    ))
+  AAChangesInfo_targeted_population_genotype_count = AAChangesInfo_targeted %>%
+    group_by(Gene, Gene_ID, reference_AA_pos) %>%
+    mutate(position_sample_total = n_distinct(sample)) %>%
+    group_by(Gene, Gene_ID, reference_AA_pos, position_sample_total, genotype) %>%
+    summarise(sample_count = n_distinct(sample)) %>%
+    mutate(sample_prev = sample_count/position_sample_total) %>%
+    group_by(Gene, Gene_ID) %>%
+    mutate(Identifier = paste0(Gene, "-", Gene_ID, "-", stringr::str_pad(reference_AA_pos, max(nchar(reference_AA_pos))))) %>%
+    ungroup()
+
+  ggplotly(ggplot(AAChangesInfo_targeted_population_genotype_count) +
+    geom_col(aes(x = Identifier, y = sample_prev, fill = genotype, sample_count = sample_count), color = "black") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+    scale_fill_manual(values = colorPalette_08))
+}
+```
+
+```{r}
+#| title: Novel mutations within sample info table
+
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted = AAChangesInfo %>%
+    filter(Targeted != "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(-Gene_Transcript_ID, -ExonicFunc, -Mutation_Name, -CoveredBy, -Targeted)
+  create_dt(AAChangesInfo_targeted)
+}
+```
+
+```{r}
+#| title: Novel mutations frequency and prevalence table
+
+if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted_population = AAChangesInfo %>%
+    filter(Targeted != "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
+    unique()
+  create_dt(AAChangesInfo_targeted_population)
+}
+```
