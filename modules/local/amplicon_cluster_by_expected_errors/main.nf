@@ -15,12 +15,12 @@ process AMPLICON_CLUSTER_BY_EXPECTED_ERRORS {
 
     """
     SeekDeep clusterDown \
+            --no_run_log \
             --${error_profile} \
             --fastqgz ${fastq_fnp} \
             --sample ${sample_name} \
             --target ${target_name} \
-            --dout custer_out \
+            --out ${sample_name}_${target_name}_output.fastq.gz \
             ${extra_args}
-    ln -s custer_out/output.fastq.gz ${sample_name}_${target_name}_output.fastq.gz
     """
 }

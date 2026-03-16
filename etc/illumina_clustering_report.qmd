@@ -117,7 +117,7 @@ allExtractionProfile_sp = allExtractionProfile %>%
   filter(new_target_name  != "undetermined") %>%
   select(sample_name, new_target_name, good) %>%
   mutate(good = log10(good + 1)) %>%
-  spread(new_target_name, good)
+  spread(new_target_name, good, fill = 0)
 
 allExtractionProfile_sp_mat = as.matrix(allExtractionProfile_sp[,2:ncol(allExtractionProfile_sp)])
 rownames(allExtractionProfile_sp_mat) = allExtractionProfile_sp$sample_name
