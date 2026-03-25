@@ -26,7 +26,7 @@ process PATHWEAVER_POP_CLUSTERING {
     """
     PathWeaver runProcessClustersOnRecon --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} ${extra_args}
     elucidator tableExtractCriteria --file popClustering/reports/seqsPerTargetGatheredDetailed.tab.txt --delim tab --columnName nSamples --header  --cutOff 1 | elucidator printCol --file STDIN --delim tab --header --columnName target > popClustering/reports/targets_with_results.txt
-    elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::sample,p_name::target,h_popUID::allele_name,h_Consensus::seq,c_ReadCnt::read_count --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
+    elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::library_sample_name,p_name::target_name,h_popUID::microhaplotype_name,h_Consensus::seq,c_ReadCnt::reads --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports
     ln -s popClustering/info
     if [ -f popClustering/info/sampleMetaData.tab.txt ]; then ln -s popClustering/info/sampleMetaData.tab.txt output_sampleMetaData.tab.txt; fi;
@@ -65,7 +65,7 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     """
     PathWeaver runProcessClustersOnRecon --genome2bit ${genome_2bit_fnp} --trimBedFnp ${trim_bed} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} ${extra_args}
     elucidator tableExtractCriteria --file popClustering/reports/seqsPerTargetGatheredDetailed.tab.txt --delim tab --columnName nSamples --header  --cutOff 1 | elucidator printCol --file STDIN --delim tab --header --columnName target > popClustering/reports/targets_with_results.txt
-    elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::sample,p_name::target,h_popUID::allele_name,h_Consensus::seq,c_ReadCnt::read_count --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
+    elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::library_sample_name,p_name::target_name,h_popUID::microhaplotype_name,h_Consensus::seq,c_ReadCnt::reads --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports
     ln -s popClustering/info
     if [ -f popClustering/info/sampleMetaData.tab.txt ]; then ln -s popClustering/info/sampleMetaData.tab.txt output_sampleMetaData.tab.txt; fi;
