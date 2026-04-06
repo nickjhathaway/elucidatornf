@@ -6,7 +6,7 @@ process SALMON_QUANT {
     label 'process_medium_low_memory'
 
     input:
-    tuple val(sample_id), path(salmon_index), path(r1), path(r2), path(pubdir)
+    tuple val(sample_id), path(salmon_index), path(r1), path(r2), val(pubdir)
 
     output:
     tuple val(sample_id),
