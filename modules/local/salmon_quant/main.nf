@@ -11,7 +11,7 @@ process SALMON_QUANT {
     output:
     tuple val(sample_id),
             path("${sample_id}_salmon_quants_quant.sf.gz"),
-            path("${sample_id}_salmon_quants_outputs_lib_format_counts.json"),
+            path("${sample_id}_salmon_quants_lib_format_counts.json"),
             path("${sample_id}_salmon_quants_meta_info.json")
     script:
     """
