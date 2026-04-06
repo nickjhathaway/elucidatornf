@@ -23,8 +23,9 @@ process SALMON_QUANT {
         -p ${task.cpus} \
         --gcBias \
         -o quants_salmon
-    pigz quants_salmon/quant.sf -c > ${sample_id}_quant.sf.gz
-    ln -s quants_salmon/lib_format_counts.json ${sample_id}_salmon_lib_format_counts.json
-    ln -s aux_info/meta_info.json ${sample_id}_salmon_meta_info.json
+    
+    pigz quants_salmon/quant.sf -c > ${sample_id}_salmon_quants_quant.sf.gz
+    ln -s quants_salmon/lib_format_counts.json ${sample_id}_salmon_quants_lib_format_counts.json
+    ln -s aux_info/meta_info.json ${sample_id}_salmon_quants_meta_info.json
     """
 }
