@@ -3,7 +3,8 @@ process SALMON_QUANT {
     publishDir "${pubdir}", mode: 'copy', overwrite: true
 
     tag "${sample_id}_salmon_quant"
-    label 'process_medium_low_memory'
+    // label 'process_medium_low_memory'
+    label 'process_low'
 
     input:
     tuple val(sample_id), path(salmon_index), path(r1), path(r2), val(pubdir)
