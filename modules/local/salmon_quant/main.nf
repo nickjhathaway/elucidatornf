@@ -17,7 +17,7 @@ process SALMON_QUANT {
     """
 
     salmon quant \
-        -i salmon_index  \
+        -i ${salmon_index}  \
         -l A \
         -1 ${r1} -2 ${r2} \
         -p ${task.cpus} \
