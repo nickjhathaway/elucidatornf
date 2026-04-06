@@ -11,7 +11,7 @@ process SALMON_QUANT {
     output:
     tuple val(sample_id),
             path("${sample_id}_salmon_quants_quant.sf.gz"),
-            path("${sample_id}_salmon_quants_lib_format_counts.json"),
+            path("${sample_id}_salmon_quants_outputs_lib_format_counts.json"),
             path("${sample_id}_salmon_quants_meta_info.json")
     script:
     """
@@ -22,10 +22,10 @@ process SALMON_QUANT {
         -1 ${r1} -2 ${r2} \
         -p ${task.cpus} \
         --gcBias \
-        -o quants_salmon
-    
-    pigz quants_salmon/quant.sf -c > ${sample_id}_salmon_quants_quant.sf.gz
-    ln -s quants_salmon/lib_format_counts.json ${sample_id}_salmon_quants_lib_format_counts.json
-    ln -s aux_info/meta_info.json ${sample_id}_salmon_quants_meta_info.json
+        -o salmon_quants_outputs
+
+    pigz salmon_quants_outputs/quant.sf -c > ${sample_id}_salmon_quants_quant.sf.gz
+    ln -s salmon_quants_outputs/lib_format_counts.json ${sample_id}_salmon_quants_lib_format_counts.json
+    ln -s salmon_quants_outputs/aux_info/meta_info.json ${sample_id}_salmon_quants_meta_info.json
     """
 }
