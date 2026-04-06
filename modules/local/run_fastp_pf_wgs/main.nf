@@ -113,3 +113,4 @@ process FASTP_TRIM {
 //     pigz -p ${task.cpus} "${sample_id}.fastp.json"
 //     """
 // }
+//
