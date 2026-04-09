@@ -25,8 +25,12 @@ process SALMON_QUANT {
         -p ${task.cpus} \
         --gcBias \
         -o salmon_quants_outputs
-
-    pigz salmon_quants_outputs/quant.sf -c > ${sample_id}_salmon_quants_quant.sf.gz
+    
+    elucidator addColumn \
+        --file salmon_quants_outputs/quant.sf \
+        --delim tab --header \
+        --newColumnName sample --element A33 \
+        --overWrite --out ${sample_id}_salmon_quants_quant.sf.gz
     ln -s salmon_quants_outputs/lib_format_counts.json ${sample_id}_salmon_quants_lib_format_counts.json
     ln -s salmon_quants_outputs/aux_info/meta_info.json ${sample_id}_salmon_quants_meta_info.json
     """
