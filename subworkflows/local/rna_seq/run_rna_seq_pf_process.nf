@@ -20,6 +20,7 @@ include { COMBINE_KEPT_FILTERED_COUNTS } from '../../../modules/local/combine_ke
 
 include { SALMON_QUANT as FINAL_SALMON_QUANT } from '../../../modules/local/salmon_quant'
 include { SALMON_QUANT as INITIAL_SALMON_QUANT } from '../../../modules/local/salmon_quant'
+include { SALMON_QUANT_COMBINE } from '../../../modules/local/salmon_quant_combine'
 
 
 
@@ -55,8 +56,15 @@ workflow RUN_RNASEQ_PROCESS_PF{
         }
     }
 
+    /*
+    Create output directories
+    */
     def fastp_trim_info_dir = file("${output_dir}/fastp_and_filter_info")
     fastp_trim_info_dir.mkdirs()
+
+    def human_removed_fastqs_dir = file("${output_dir}/human_removed_fastqs")
+    human_removed_fastqs_dir.mkdirs()
+
     channel
         .fromFilePairs(
             "${input_fastq_dir}/*_{R,}{1,2}*.{fq,fastq}.gz",
@@ -67,12 +75,6 @@ workflow RUN_RNASEQ_PROCESS_PF{
             keep_set == null || keep_set.contains(sid)
         }
         .map { sid, r1, r2 ->
-            /*
-            * sid examples produced by fromFilePairs:
-            *   PAT-020
-            *   PAT-025
-            *   S3_WGS-batchD_8045353103-ST170_S19
-            */
             def sample_id = sid
             def final_id  = rename_map.get(sample_id, sample_id)
             tuple(sample_id, final_id, [r1, r2])
@@ -264,8 +266,27 @@ workflow RUN_RNASEQ_PROCESS_PF{
         )
     }
 
-    //final_bam_out =
+    // run quant on filtered fastqs
     FINAL_SALMON_QUANT(final_salmon_in)
+
+    // summarizing the amount of humand and pf extracted
+
+
+    // combining the quants and running music on it
+    // Collect all quant.sf.gz files and combine with a pubdir
+    combine_in = FINAL_SALMON_QUANT.out
+        .map { _sample_id, quant_sf, _lib_format, _meta_info -> quant_sf }
+        .collect()
+        .combine(filtered_quants_dir)
+
+    SALMON_QUANT_COMBINE(combine_in)
+
+    // running the two different kmer extractions
+
+    // running assembly on the vars
+    
+    // running the domain determination on the assembled vars
+
 
     // //summarize
     // fastp_json_tagged = trimmed_ch.map { sid, _r1, _r2, json ->
