@@ -277,14 +277,14 @@ workflow RUN_RNASEQ_PROCESS_PF{
     combine_in = FINAL_SALMON_QUANT.out
         .map { _sample_id, quant_sf, _lib_format, _meta_info -> quant_sf }
         .collect()
-        .combine(filtered_quants_dir)
+        .combine(channel.of(filtered_quants_dir))
 
     SALMON_QUANT_COMBINE(combine_in)
 
     // running the two different kmer extractions
 
     // running assembly on the vars
-    
+
     // running the domain determination on the assembled vars
 
 
