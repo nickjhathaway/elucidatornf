@@ -277,7 +277,7 @@ workflow RUN_RNASEQ_PROCESS_PF{
     combine_in = FINAL_SALMON_QUANT.out
         .map { _sample_id, quant_sf, _lib_format, _meta_info -> quant_sf }
         .collect()
-        .combine(channel.of(filtered_quants_dir))
+        .map {all_quant_fnps -> tuple(all_quant_fnps, filtered_quants_dir) }
 
     SALMON_QUANT_COMBINE(combine_in)
 
