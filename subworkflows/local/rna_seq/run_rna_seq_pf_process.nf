@@ -36,6 +36,7 @@ workflow RUN_RNASEQ_PROCESS_PF{
     rnaseq_host2_filter_genome_fasta_fnp
     rnaseq_host2_filter_contigs_fnp
     salmon_index
+    single_cell_seurat_r_object_fnp
     main:
 
     /********************************
@@ -290,7 +291,7 @@ workflow RUN_RNASEQ_PROCESS_PF{
         .map {all_quant_fnps -> tuple(all_quant_fnps, filtered_quants_dir) }
 
     FINAL_SALMON_QUANT_COMBINE(final_salmon_combine_in)
-    RUN_MUSIC_DECOMP_PF(FINAL_SALMON_QUANT_COMBINE.out.combined_quants_fnp.map { combined_quants_fnp -> tuple(combined_quants_fnp, filtered_quants_dir)})
+    RUN_MUSIC_DECOMP_PF(FINAL_SALMON_QUANT_COMBINE.out.combined_quants_fnp.map { combined_quants_fnp -> tuple(combined_quants_fnp, single_cell_seurat_r_object_fnp, filtered_quants_dir)})
     // running the two different kmer extractions
 
     // running assembly on the vars
