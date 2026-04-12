@@ -20,7 +20,10 @@ include { COMBINE_KEPT_FILTERED_COUNTS } from '../../../modules/local/combine_ke
 
 include { SALMON_QUANT as FINAL_SALMON_QUANT } from '../../../modules/local/salmon_quant'
 include { SALMON_QUANT as INITIAL_SALMON_QUANT } from '../../../modules/local/salmon_quant'
-include { SALMON_QUANT_COMBINE } from '../../../modules/local/salmon_quant_combine'
+include { SALMON_QUANT_COMBINE as FINAL_SALMON_QUANT_COMBINE} from '../../../modules/local/salmon_quant_combine'
+include { SALMON_QUANT_COMBINE as INITIAL_SALMON_QUANT_COMBINE} from '../../../modules/local/salmon_quant_combine'
+
+include { RUN_MUSIC_DECOMP_PF } from '../../../modules/local/running_music_decomp_pf'
 
 
 
@@ -113,8 +116,14 @@ workflow RUN_RNASEQ_PROCESS_PF{
     initial_salmon_in = trimmed_ch.map { sid, r1_trim, r2_trim, _json ->
         tuple(sid, salmon_index, r1_trim, r2_trim, initial_quants_dir)
     }
-    //final_bam_out =
+    //combine initial quants
     INITIAL_SALMON_QUANT(initial_salmon_in)
+    initial_salmon_combine_in = INITIAL_SALMON_QUANT.out
+        .map { _sample_id, quant_sf, _lib_format, _meta_info -> quant_sf }
+        .collect()
+        .map {all_quant_fnps -> tuple(all_quant_fnps, initial_quants_dir) }
+
+    INITIAL_SALMON_QUANT_COMBINE(initial_salmon_combine_in)
 
     // map minimap2 to host 1 filter
     host1_minimap2_in = trimmed_ch.map { sid, r1_trim, r2_trim, _json ->
@@ -266,6 +275,8 @@ workflow RUN_RNASEQ_PROCESS_PF{
         )
     }
 
+    //combine the initial quants so summary can be run on them
+
     // run quant on filtered fastqs
     FINAL_SALMON_QUANT(final_salmon_in)
 
@@ -273,14 +284,13 @@ workflow RUN_RNASEQ_PROCESS_PF{
 
 
     // combining the quants and running music on it
-    // Collect all quant.sf.gz files and combine with a pubdir
-    combine_in = FINAL_SALMON_QUANT.out
+    final_salmon_combine_in = FINAL_SALMON_QUANT.out
         .map { _sample_id, quant_sf, _lib_format, _meta_info -> quant_sf }
         .collect()
         .map {all_quant_fnps -> tuple(all_quant_fnps, filtered_quants_dir) }
 
-    SALMON_QUANT_COMBINE(combine_in)
-
+    FINAL_SALMON_QUANT_COMBINE(final_salmon_combine_in)
+    RUN_MUSIC_DECOMP_PF(FINAL_SALMON_QUANT_COMBINE.out.combined_quants_fnp.map { combined_quants_fnp -> tuple(combined_quants_fnp, filtered_quants_dir)})
     // running the two different kmer extractions
 
     // running assembly on the vars

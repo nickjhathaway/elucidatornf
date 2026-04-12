@@ -68,16 +68,16 @@ suppressPackageStartupMessages({
 # Helper function
 process_qunat_sf_for_3d7 <- function(quant_fnp, accetable_genes) {
   quant_dat <- readr::read_tsv(quant_fnp, show_col_types = FALSE)
-  
+
   quant_dat_3d7 <- quant_dat %>%
     filter(grepl("^PF3D7", Name)) %>%
     mutate(in_sc = Name %in% accetable_genes) %>%
     mutate(new_name = ifelse(in_sc, Name, gsub("\\..*", "", Name))) %>%
     mutate(new_name_in_sc = new_name %in% accetable_genes)
-  
+
   quant_dat_3d7_in_sc <- quant_dat_3d7 %>%
     filter(new_name_in_sc)
-  
+
   return(quant_dat_3d7_in_sc)
 }
 
@@ -165,13 +165,10 @@ music_result <- music_prop(
 
 # Extract and write results
 music_props <- music_result$Est.prop.weighted
-print(music_props)
 
 music_props_df <- as.data.frame(music_props) %>%
   tibble::rownames_to_column("sample") %>%
   tidyr::pivot_longer(-sample, names_to = "stage", values_to = "proportion")
-
-print(music_props_df %>% filter(proportion > 0))
 
 message(paste("Writing output to:", opt$output))
 readr::write_tsv(music_props_df, opt$output)

@@ -8,7 +8,7 @@ process RUN_MUSIC_DECOMP_PF {
     tuple path(all_quant_fnp), path(single_cell_r_object), val(pubdir)
 
     output:
-    path("pf_music_decomp_cell_proportions.tsv.")
+    path("pf_music_decomp_cell_proportions.tsv."), emit: pf_music_decomp_cell_proportions_fnp
 
     script:
     """

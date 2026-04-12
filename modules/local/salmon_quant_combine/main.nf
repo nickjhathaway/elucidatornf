@@ -8,7 +8,7 @@ process SALMON_QUANT_COMBINE {
     tuple path(quant_files), val(pubdir)
 
     output:
-    path("all_quants.tsv.gz")
+    path("all_quants.tsv.gz"), emit: combined_quants_fnp
 
     script:
     """
