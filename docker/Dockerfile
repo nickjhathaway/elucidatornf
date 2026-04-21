@@ -1,0 +1,131 @@
+FROM ubuntu:24.04 AS base
+LABEL authors="nicholashathaway"
+
+ARG DEBIAN_FRONTEND="noninteractive"
+ARG CPU_COUNT=15
+ARG TIME_ZONE=Etc/UTC
+ARG ELUCIDATOR_VERSION=develop
+ARG LANG="en_US.UTF-8"
+
+# All apt installs in one layer — install everything upfront, clean once
+RUN apt-get update && apt-get -yq dist-upgrade && \
+    apt-get install -yq --no-install-recommends \
+      autotools-dev autoconf libtool automake build-essential curl wget file tree \
+      git git-lfs locales libssl-dev libcurl4-gnutls-dev ca-certificates \
+      xz-utils zlib1g-dev libbz2-dev liblzma5 liblzma-dev openssh-client \
+      gcc-10 g++-10 ccache libxml2-dev libfontconfig1-dev libcairo2-dev \
+      python3-dev python3-pip python3-yaml \
+      python3-nbclient python3-nbconvert python3-ipykernel \
+      python3-jupyter-client python3-jupyter-core \
+      libharfbuzz-dev libfribidi-dev libicu-dev libhdf5-dev \
+      pigz ncbi-blast+ ncbi-tools-bin lastz cmake tzdata \
+      # R and CRAN repo
+      r-base r-base-dev \
+ && echo "deb https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" > /etc/apt/sources.list.d/cran.list \
+ && wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
+      | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
+ && apt-get update && apt-get install -yq r-base r-base-dev \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+# Locale + timezone in one layer
+RUN echo "$LANG UTF-8" >> /etc/locale.gen && \
+    locale-gen $LANG && update-locale LANG=$LANG && \
+    ln -fs /usr/share/zoneinfo/$TIME_ZONE /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
+
+# Miniforge + all conda tools in one layer
+RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+      -O /tmp/miniforge.sh \
+ && bash /tmp/miniforge.sh -b -p /opt/conda \
+ && rm /tmp/miniforge.sh \
+ && /opt/conda/bin/mamba install -y -c bioconda -c conda-forge \
+      muscle spades minimap2 bowtie2 bwa samtools bcftools vcftools \
+      bedtools seqkit rnabloom hmmer blast salmon bbmap ncbi-datasets-cli \
+      gffread subread htseq mosdepth fastp seqtk mummer \
+ && /opt/conda/bin/mamba clean -afy \
+ && find /opt/conda -name "*.pyc" -delete \
+ && find /opt/conda -name "*.a" -delete \
+ && rm -rf /opt/conda/pkgs/* /opt/conda/share/doc /opt/conda/share/man
+
+ENV PATH="/opt/conda/bin:$PATH"
+
+# All R packages in one layer — biggest consolidation win
+COPY install_packages.R /opt/install_packages.R
+RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
+    echo "options(repos = c(CRAN = 'https://cran.rstudio.com/'), \
+      download.file.method = 'libcurl', Ncpus = ${CPU_COUNT})" \
+      | tee /usr/local/lib/R/etc/Rprofile.site | tee /usr/lib/R/etc/Rprofile.site && \
+    Rscript -e " \
+      source('/opt/install_packages.R'); \
+      install_cran(c( \
+        'remotes', 'tibble', 'dplyr', 'stringr', 'readr', 'ggplot2', 'tidyr', \
+        'data.table', 'openxlsx', 'rlang', 'magrittr', 'pegas', \
+        'ape', 'rmarkdown', 'knitr', 'kableExtra', 'DT', 'here', \
+        'ggrepel', 'ggthemes', 'ggdist', 'ggnewscale', 'plotly', \
+        'dendsort', 'tidymodels', 'rjson', 'cowplot', 'dbscan', 'naturalsort', 'Cairo', \
+        'fastmatch', 'colorRamps', 'paletteer', 'r2d3', 'shiny', 'skimr', 'moderndive', \
+        'formatR', 'markdown', 'bigmds', 'optparse', 'validate', \
+      ), ncpus = ${CPU_COUNT})" && \
+    Rscript -e "\
+        source('/opt/install_packages.R'); \
+        setRepositories(ind = 1:3);\
+        install_cran(c( \
+          'Signac' \
+        ), ncpus = ${CPU_COUNT})" && \
+    Rscript -e "\
+        source('/opt/install_packages.R'); \
+        install_cran(c( \
+          'Seurat' \
+        ), ncpus = ${CPU_COUNT})" && \
+    Rscript -e " \
+      if (!require('BiocManager', quietly=TRUE)) install.packages('BiocManager'); \
+      BiocManager::install(version='3.21', ask=FALSE);" && \
+    Rscript -e "\
+      source('/opt/install_packages.R'); \
+      install_bioconductor(c('Biostrings', 'pwalign', 'ggtree', 'ComplexHeatmap', 'MAST', 'SingleCellExperiment', 'TOAST'), version = '3.21')" &&\
+    Rscript -e " \
+      source('/opt/install_packages.R'); \
+      setRepositories(ind=1:3, addURLs=c('https://satijalab.r-universe.dev','https://bnprks.r-universe.dev/')); \
+      install_cran(c('BPCells','presto','glmGamPoi'), ncpus=${CPU_COUNT})" && \
+    Rscript -e " \
+      source('/opt/install_packages.R'); \
+      install_github(c('nickjhathaway/HaplotypeRainbows@develop','hoesler/rwantshue','xuranw/MuSiC'))" && \
+    # Clean R build artifacts — often 200-400MB
+    find /usr/local/lib/R -name "*.o" -delete && \
+    find /usr/local/lib/R -name "*.a" -delete && \
+    rm -rf /tmp/downloaded_packages /tmp/Rtmp* \
+    /root/.local/share/R
+
+
+
+# Quarto
+WORKDIR /opt
+RUN wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.8.25/quarto-1.8.25-linux-amd64.tar.gz && \
+    tar -xzf quarto-1.8.25-linux-amd64.tar.gz && \
+    rm quarto-1.8.25-linux-amd64.tar.gz
+
+# elucidator — shallow clone, clean build artifacts
+RUN mkdir ~/.ssh/ && ssh-keyscan github.com >> ~/.ssh/known_hosts
+RUN git clone --depth 1 -b develop https://github.com/nickjhathaway/elucidator.git /opt/elucidator
+WORKDIR /opt/elucidator
+RUN ./setup.py --libs adapterremoval:v2.3.2 --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    ./setup.py --libs bamtools:develop --symlinkBin && \
+    ./setup.py --libs njhcpp:develop --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    ./setup.py --libs njhseq:develop --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    ./setup.py --libs seqServer:develop --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    ./setup.py --libs SeekDeep:develop --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    ./setup.py --libs PathWeaver:develop --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    ./setup.py --libs elucidator:${ELUCIDATOR_VERSION} --numCores ${CPU_COUNT} --overWrite --symlinkBin && \
+    rm -fr external/build external/src && \
+    find . -name "*.o" -delete && \
+    find /opt/elucidator/external/local -name ".git" -type d  | xargs rm -rf && \
+    find /opt/elucidator/external/local -name "tests" -type d  | xargs rm -rf && \
+    find /opt/elucidator/external/local -name "docs" -type d  | xargs rm -rf && \
+    find /opt/elucidator/external/local -name "doc" -type d  | xargs rm -rf
+
+
+EXPOSE 8000-9999
+ENV PATH="/opt/quarto-1.8.25/bin:/opt/elucidator/bin:$PATH"
+ENV XDG_CACHE_HOME="/tmp/quarto_cache"
+WORKDIR /
