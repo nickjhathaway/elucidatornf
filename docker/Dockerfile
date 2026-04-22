@@ -18,7 +18,7 @@ RUN apt-get update && apt-get -yq dist-upgrade && \
       python3-nbclient python3-nbconvert python3-ipykernel \
       python3-jupyter-client python3-jupyter-core \
       libharfbuzz-dev libfribidi-dev libicu-dev libhdf5-dev \
-      pigz ncbi-blast+ ncbi-tools-bin lastz cmake tzdata \
+      pigz ncbi-blast+ ncbi-tools-bin lastz cmake tzdata libuv1-dev\
       # R and CRAN repo
       r-base r-base-dev \
  && echo "deb https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" > /etc/apt/sources.list.d/cran.list \
@@ -50,7 +50,10 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Mi
 
 ENV PATH="/opt/conda/bin:$PATH"
 
-# All R packages in one layer — biggest consolidation win
+# All R packages in one layer
+# Ensure C++14 minimum for R package compilation (needed for newer RcppArmadillo with presto for some reason)
+RUN mkdir -p ~/.R && printf 'CXX11STD = -std=gnu++14\nCXX14STD = -std=gnu++14\n' > ~/.R/Makevars
+
 COPY install_packages.R /opt/install_packages.R
 RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
     echo "options(repos = c(CRAN = 'https://cran.rstudio.com/'), \
@@ -65,7 +68,7 @@ RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
         'ggrepel', 'ggthemes', 'ggdist', 'ggnewscale', 'plotly', \
         'dendsort', 'tidymodels', 'rjson', 'cowplot', 'dbscan', 'naturalsort', 'Cairo', \
         'fastmatch', 'colorRamps', 'paletteer', 'r2d3', 'shiny', 'skimr', 'moderndive', \
-        'formatR', 'markdown', 'bigmds', 'optparse', 'validate', \
+        'formatR', 'markdown', 'bigmds', 'optparse', 'validate' \
       ), ncpus = ${CPU_COUNT})" && \
     Rscript -e "\
         source('/opt/install_packages.R'); \
@@ -81,16 +84,17 @@ RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
     Rscript -e " \
       if (!require('BiocManager', quietly=TRUE)) install.packages('BiocManager'); \
       BiocManager::install(version='3.21', ask=FALSE);" && \
+    Rscript -e " \
+      source('/opt/install_packages.R'); \
+      setRepositories(ind=1:3, addURLs=c('https://satijalab.r-universe.dev','https://bnprks.r-universe.dev/')); \
+      install_cran(c('BPCells','presto','glmGamPoi'), ncpus=${CPU_COUNT})" && \
     Rscript -e "\
       source('/opt/install_packages.R'); \
       install_bioconductor(c('Biostrings', 'pwalign', 'ggtree', 'ComplexHeatmap', 'MAST', 'SingleCellExperiment', 'TOAST'), version = '3.21')" &&\
     Rscript -e " \
       source('/opt/install_packages.R'); \
-      setRepositories(ind=1:3, addURLs=c('https://satijalab.r-universe.dev','https://bnprks.r-universe.dev/')); \
-      install_cran(c('BPCells','presto','glmGamPoi'), ncpus=${CPU_COUNT})" && \
-    Rscript -e " \
-      source('/opt/install_packages.R'); \
-      install_github(c('nickjhathaway/HaplotypeRainbows@develop','hoesler/rwantshue','xuranw/MuSiC'))" && \
+      setRepositories(ind = 1:3);\
+      install_github(c('nickjhathaway/HaplotypeRainbows@develop','hoesler/rwantshue','xuranw/MuSiC', 'humengying0907/InstaPrism'))" && \
     # Clean R build artifacts — often 200-400MB
     find /usr/local/lib/R -name "*.o" -delete && \
     find /usr/local/lib/R -name "*.a" -delete && \
