@@ -9,7 +9,7 @@ process RUN_INSTAPRISM_DECONVOLUTION_PF {
 
     output:
     path("pf_instaprism_fine_cell_proportions.tsv"), emit: pf_instaprism_fine_cell_proportions_fnp
-    path("pf_instaprism_course_cell_proportions.tsv"), emit: pf_instaprism_fine_cell_proportions_fnp
+    path("pf_instaprism_course_cell_proportions.tsv"), emit: pf_instaprism_course_cell_proportions_fnp
 
     script:
     //right now code is very specific to pf malaria cell atlas data, @todo make more flexible
