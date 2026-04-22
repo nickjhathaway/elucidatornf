@@ -18,7 +18,7 @@ process RUN_INSTAPRISM_DECONVOLUTION_PF {
             --all_quants ${all_quant_fnp} \
             --coarse_cell_label STAGE_LR \
             --fine_cell_label STAGE_HR2 \
-            --output_course pf_instaprism_fine_cell_proportions.tsv \
+            --output_course pf_instaprism_course_cell_proportions.tsv \
             --output_fine pf_instaprism_fine_cell_proportions.tsv \
             --single_cell_r_object ${single_cell_r_object}\
             --use_top_diff \
