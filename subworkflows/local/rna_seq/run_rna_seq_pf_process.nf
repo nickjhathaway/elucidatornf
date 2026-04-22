@@ -24,7 +24,7 @@ include { SALMON_QUANT_COMBINE as FINAL_SALMON_QUANT_COMBINE} from '../../../mod
 include { SALMON_QUANT_COMBINE as INITIAL_SALMON_QUANT_COMBINE} from '../../../modules/local/salmon_quant_combine'
 
 include { RUN_MUSIC_DECOMP_PF } from '../../../modules/local/running_music_decomp_pf'
-
+include { RUN_INSTAPRISM_DECONVOLUTION_PF } from '../../../modules/local/running_instaprism_deconvolution_pf'
 
 
 workflow RUN_RNASEQ_PROCESS_PF{
@@ -292,6 +292,8 @@ workflow RUN_RNASEQ_PROCESS_PF{
 
     FINAL_SALMON_QUANT_COMBINE(final_salmon_combine_in)
     RUN_MUSIC_DECOMP_PF(FINAL_SALMON_QUANT_COMBINE.out.combined_quants_fnp.map { combined_quants_fnp -> tuple(combined_quants_fnp, single_cell_seurat_r_object_fnp, filtered_quants_dir)})
+    RUN_INSTAPRISM_DECONVOLUTION_PF(FINAL_SALMON_QUANT_COMBINE.out.combined_quants_fnp.map { combined_quants_fnp -> tuple(combined_quants_fnp, single_cell_seurat_r_object_fnp, filtered_quants_dir)})
+
     // running the two different kmer extractions
 
     // running assembly on the vars
