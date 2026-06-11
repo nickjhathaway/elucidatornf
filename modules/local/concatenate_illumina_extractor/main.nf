@@ -1,7 +1,7 @@
 process CONCATENATE_ILLUMINA_EXTRACTOR {
     label 'process_single'
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "all*.tsv.gz"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "all*.tsv.gz"
 
     input:
     path extraction_profile_per_target_fnps

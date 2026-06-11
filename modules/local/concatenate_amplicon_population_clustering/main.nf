@@ -1,8 +1,8 @@
 process CONCATENATE_AMPLICON_POPULATION_CLUSTERING {
     label 'process_single'
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "allSelectedClustersInfo.tsv.gz"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "allele_data.tsv.gz"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "allSelectedClustersInfo.tsv.gz"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "allele_data.tsv.gz"
 
     input:
     path clustered_fnps

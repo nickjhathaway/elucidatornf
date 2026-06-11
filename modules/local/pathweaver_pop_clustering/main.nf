@@ -2,8 +2,8 @@ process PATHWEAVER_POP_CLUSTERING {
     label 'process_high'
     cpus   { params.pw_pop_clustering_ncpus }
 
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true, pattern : "reports"
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true, pattern : "info"
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true, pattern : "reports"
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true, pattern : "info"
 
     input:
     val dirstub
@@ -38,8 +38,8 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     label 'process_high'
     cpus   { params.pw_pop_clustering_ncpus }
 
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true, pattern : "reports"
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true, pattern : "info"
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true, pattern : "reports"
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true, pattern : "info"
 
     input:
     val dirstub

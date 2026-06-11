@@ -1,7 +1,7 @@
 process CONCATENATE_SUB_SEGMENT_LOCS {
     label 'process_single'
 
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true
 
 
     input:

@@ -1,6 +1,6 @@
 process SALMON_QUANT_COMBINE {
 
-    publishDir "${pubdir}", mode: 'copy', overwrite: true
+    publishDir { "${pubdir}" }, mode: 'copy', overwrite: true
 
     tag "salmon_quant_combine"
 

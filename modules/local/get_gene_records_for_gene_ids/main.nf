@@ -1,6 +1,6 @@
 process GET_GENE_RECORDS_FOR_GENE_IDS {
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "infos"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "infos"
 
     label 'process_single'
 

@@ -1,6 +1,6 @@
 process RUN_INSTAPRISM_DECONVOLUTION_PF {
 
-    publishDir "${pubdir}", mode: 'copy', overwrite: true
+    publishDir { "${pubdir}" }, mode: 'copy', overwrite: true
 
     tag "run_instaprism_deconvolution_pf"
 

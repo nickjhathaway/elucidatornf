@@ -1,7 +1,7 @@
 process EXTRACT_REGION_ASSEMBLIES {
     tag "${sample} extract region assemble"
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true
 
     cpus { params.pw_ncpus }
 

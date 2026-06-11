@@ -1,7 +1,7 @@
 process AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR {
     label 'process_low'
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true
 
     cpus   { ncpus }
 

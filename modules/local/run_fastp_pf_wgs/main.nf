@@ -2,7 +2,7 @@ process FASTP_TRIM {
 
   tag "${sample_id}_fastp_trimming"
   label 'process_medium_low_memory'
-  publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "*.json.gz"
+  publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "*.json.gz"
 
   maxRetries 2
 
@@ -71,7 +71,7 @@ process FASTP_TRIM {
 //     tag "${sample_id}_fastp_trimming"
 //     label 'process_medium_low_memory'
 
-//     publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "*.json.gz"
+//     publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "*.json.gz"
 
 //     input:
 //     tuple val(sample_id), path(reads), val(pub_dir)

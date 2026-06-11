@@ -28,7 +28,7 @@ process COMBINE_KEPT_FILTERED_FASTQS{
 
 
 process COMBINE_KEPT_FILTERED_COUNTS{
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "*.tsv.gz"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "*.tsv.gz"
 
     tag "${sample_id} combine kept counts"
 

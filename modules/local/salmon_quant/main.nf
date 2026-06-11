@@ -1,6 +1,6 @@
 process SALMON_QUANT {
 
-    publishDir "${pubdir}", mode: 'copy', overwrite: true
+    publishDir { "${pubdir}" }, mode: 'copy', overwrite: true
 
     tag "${sample_id}_salmon_quant"
     // label 'process_medium_low_memory'

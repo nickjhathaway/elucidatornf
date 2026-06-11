@@ -25,7 +25,7 @@ process WRITE_FASTP_FAILURE_LIST {
 
     tag "write_fastp_failures"
     label 'process_single'
-    publishDir "${outdir}", mode: 'copy', overwrite: true, pattern: "*_failed_fastp_samples.txt"
+    publishDir { "${outdir}" }, mode: 'copy', overwrite: true, pattern: "*_failed_fastp_samples.txt"
 
     input:
     tuple val(sample_ids), val(outdir)

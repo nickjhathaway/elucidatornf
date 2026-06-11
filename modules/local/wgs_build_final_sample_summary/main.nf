@@ -4,7 +4,7 @@ process WGS_BUILD_FINAL_SAMPLE_SUMMARY {
   label 'process_single'
 
   // publish wherever you want; you already have fastp_trim_info_dir
-  publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "*.tsv.gz"
+  publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "*.tsv.gz"
 
   input:
   tuple val(sample_id),

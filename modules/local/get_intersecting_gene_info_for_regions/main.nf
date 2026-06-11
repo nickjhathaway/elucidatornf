@@ -1,7 +1,7 @@
 process GET_INTERSECTING_GENE_INFO_FOR_REGIONS {
     label 'process_single'
 
-    publishDir "${publish_dir}", mode: 'copy', overwrite: true
+    publishDir { "${publish_dir}" }, mode: 'copy', overwrite: true
 
     input:
     path bed_fnp

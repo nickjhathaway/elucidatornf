@@ -1,7 +1,7 @@
 process VARIANT_CALL_ON_HAP_TABLE {
     label 'process_medium'
 
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true
 
 
     input:

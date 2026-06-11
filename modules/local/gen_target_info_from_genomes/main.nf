@@ -3,11 +3,11 @@ process GEN_TARGET_INFO_FROM_GENOMES_NANOPORE {
     cpus   { ncpus }
 
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "primers.tsv"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "primers.tsv"
 
 
 
@@ -62,11 +62,11 @@ process GEN_TARGET_INFO_FROM_GENOME_NANOPORE {
     cpus   { ncpus }
 
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "primers.tsv"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "primers.tsv"
 
 
     input:
@@ -119,11 +119,11 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     cpus   { ncpus }
 
 
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
-    publishDir "${pub_dir}", mode: 'copy', overwrite: true, pattern: "primers.tsv"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/forSeekDeep"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/locationsByGenome"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "genome_extraction/allExtractionCounts.tab.txt"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "targets_with_extractions.txt"
+    publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "primers.tsv"
 
 
     input:

@@ -1,7 +1,7 @@
 process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
     label 'process_low'
 
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true
 
     input:
     path res_folders

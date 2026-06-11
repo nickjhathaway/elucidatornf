@@ -1,6 +1,6 @@
 process RUN_MUSIC_DECOMP_PF {
 
-    publishDir "${pubdir}", mode: 'copy', overwrite: true
+    publishDir { "${pubdir}" }, mode: 'copy', overwrite: true
 
     tag "run_music_decomp_pf"
 

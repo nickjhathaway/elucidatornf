@@ -3,8 +3,8 @@ process DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE {
 
     cpus { ncpus }
 
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true, pattern: "targets.bed"
-    publishDir "${pub_results_dir}", mode: 'copy', overwrite: true, pattern: "seqs.bed"
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true, pattern: "targets.bed"
+    publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true, pattern: "seqs.bed"
 
 
     input:
