@@ -1,55 +1,93 @@
 # nickjhathaway/elucidatornf
 
-[![GitHub Actions CI Status](https://github.com/nickjhathaway/elucidatornf/actions/workflows/ci.yml/badge.svg)](https://github.com/nickjhathaway/elucidatornf/actions/workflows/ci.yml)
-[![GitHub Actions Linting Status](https://github.com/nickjhathaway/elucidatornf/actions/workflows/linting.yml/badge.svg)](https://github.com/nickjhathaway/elucidatornf/actions/workflows/linting.yml)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
-[![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
-
-[![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A524.04.2-23aa62.svg)](https://www.nextflow.io/)
-[![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
-[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
-[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
-[![Launch on Seqera Platform](https://img.shields.io/badge/Launch%20%F0%9F%9A%80-Seqera%20Platform-%234256e7)](https://cloud.seqera.io/launch?pipeline=https://github.com/nickjhathaway/elucidatornf)
-
 ## Introduction
 
-**nickjhathaway/elucidatornf** is a bioinformatics pipeline that runs various amplicon pipelines that are found within SeekDeep, PathWeaver and elucidator
+**nickjhathaway/elucidatornf** is a collection of Nextflow workflows that stream
+together tools from [SeekDeep](https://github.com/bailey-lab/SeekDeep),
+[PathWeaver](https://github.com/bailey-lab/PathWeaver), and
+[elucidator](https://github.com/nickjhathaway/elucidator) for amplicon
+clustering, targeted assembly, and *P. falciparum* WGS/RNA-seq preprocessing.
 
-<!-- TODO nf-core:
-   Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the
-   major pipeline sections and the types of output it produces. You're giving an overview to someone new
-   to nf-core here, in 15-20 seconds. For an example, see https://github.com/nf-core/rnaseq/blob/master/README.md#introduction
--->
+This is a **multi-workflow project**: there is no single default pipeline.
+Each analysis is its own entry script in the repository root — run the one you
+need directly. `main.nf` is only a helper that lists the available workflows
+(`nextflow run main.nf` prints the list below; it does not run an analysis).
 
-<!-- TODO nf-core: Include a figure that guides the user through the major workflow steps. Many nf-core
-     workflows use the "tube map" design for that. See https://nf-co.re/docs/contributing/design_guidelines#examples for examples.   -->
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->
+| Entry script | What it does |
+| --- | --- |
+| `illumina_clustering.nf` | Illumina amplicon clustering (SeekDeep) |
+| `nanopore_clustering.nf` | Nanopore amplicon clustering (SeekDeep) |
+| `pathweaver_extract_regions.nf` | PathWeaver targeted region extraction + population clustering |
+| `wgs_preprocess_pf.nf` | WGS read preprocessing / host filtering (*P. falciparum*) |
+| `rnaseq_process_pf.nf` | RNA-seq processing + deconvolution (*P. falciparum*) |
+| `index_genomes.nf` | Build indexes for a directory of genomes |
 
 ## Usage
 
 > [!NOTE]
-> If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
+> If you are new to Nextflow, see [this page](https://nf-co.re/docs/usage/installation)
+> on how to set up Nextflow.
 
-<!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):
+> [!WARNING]
+> On Nextflow 26.04+ (strict syntax / parser v2), parameters given on the CLI are
+> always strings. In practice the only thing to watch is **booleans**: to turn a
+> flag *on*, pass it bare (e.g. `--do_variant_calling`); to turn it *off*, simply
+> **omit it** — do not pass `--do_variant_calling false` (the string `"false"` is
+> truthy and would still enable it). For fully typed inputs, use a
+> [`-params-file`](https://www.nextflow.io/docs/latest/cli.html#run) (YAML/JSON).
 
-First, prepare a samplesheet with your input data that looks as follows:
+### Common options
 
-`samplesheet.csv`:
+These apply to every workflow:
 
-```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+- `--outdir <dir>` — output directory (**required** by all but `index_genomes.nf`).
+- `-profile <docker/singularity/apptainer/...>` — container engine / institutional profile.
+- Resources (see [`conf/params/global.config`](conf/params/global.config)):
+  `--max_task_cpus` / `--max_task_memory` / `--max_task_time` cap a single task;
+  `--max_executor_cpus` / `--max_executor_memory` cap the whole-run pool;
+  both are clamped to the detected machine. `--max_retry` sets automatic retries.
+
+The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` share an optional
+**variant-calling** stage (see [`conf/params/variant_calling.config`](conf/params/variant_calling.config)):
+
+- `--do_variant_calling` — enable variant calling (off by default).
+- `--vc_primary_genome <name>`, `--meta_fnp <tsv>`, `--variant_calling_ncpus <n>`,
+  `--vc_variant_frequency_cut_off`, `--vc_variant_occurrence_cut_off`,
+  `--meta_fields_to_calc_pop_diffs`, `--vc_extra_args "..."`.
+
+### Illumina amplicon clustering — `illumina_clustering.nf`
+
+**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
+`--outdir`, `--illumina_clustering_paired_end_length`.
+
+**Key options** (see [`conf/params/illumina.config`](conf/params/illumina.config) /
+[`conf/params/amplicon.config`](conf/params/amplicon.config)):
+`--illumina_clustering_min_sample_read_count`, `--illumina_clustering_trim_front`,
+`--illumina_clustering_trim_back`, `--illumina_clustering_population_ncpus`,
+`--amplicon_clustering_pop_clustering_extra_args`.
+
+```bash
+nextflow run elucidatornf/illumina_clustering.nf \
+      --input_fastq_dir fastq/ \
+      --primers_fnp primers.tsv \
+      --genome_dir /tank/data/plasmodium/genomes/pf/genomes/ \
+      --gff_dir /tank/data/plasmodium/genomes/pf/info/gff/ \
+      --illumina_clustering_paired_end_length 250 \
+      --outdir analysis_illumina \
+      -profile <docker/singularity/apptainer/.../institute>
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+### Nanopore amplicon clustering — `nanopore_clustering.nf`
 
--->
+**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
+`--outdir`.
 
-Now, you can run the pipeline using:
-
-<!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
-
-### nanopore amplicon clustering
+**Key options** (see [`conf/params/nanopore.config`](conf/params/nanopore.config) /
+[`conf/params/amplicon.config`](conf/params/amplicon.config)):
+`--nanopore_clustering_min_len`, `--nanopore_clustering_min_sample_read_count`,
+`--nanopore_clustering_max_reads_use`, `--nanopore_extractor_use_inner_primers`,
+`--nanopore_primers_errors_allowed`, `--nanopore_rename_key_fnp`,
+`--nanopore_render_clustering_report`.
 
 ```bash
 nextflow run elucidatornf/nanopore_clustering.nf \
@@ -57,47 +95,107 @@ nextflow run elucidatornf/nanopore_clustering.nf \
       --primers_fnp primers.tsv \
       --genome_dir /tank/data/plasmodium/genomes/pf/genomes/ \
       --gff_dir /tank/data/plasmodium/genomes/pf/info/gff/ \
-      --outdir analysis_nextflow  \
+      --outdir analysis_nanopore \
       --do_variant_calling \
-      --vc_primary_genome Pf3D7\
+      --vc_primary_genome Pf3D7 \
       -profile <docker/singularity/apptainer/.../institute>
 ```
 
-### PathWeaver targeted assembly
+### PathWeaver targeted region extraction — `pathweaver_extract_regions.nf`
+
+**Required:** `--bams_dir`, `--genome_fnp`, `--outdir`, **and exactly one** way to
+specify the target regions:
+
+- `--pw_bed_fnp <bed>` — regions from a BED file, **or**
+- `--primers_fnp <tsv>` — regions from a primers file, **or**
+- `--pw_gene_ids <ids>` — regions from gene IDs, **or**
+- `--pw_seqs_table <tsv>` (with `--pw_seqs_table_seqs_col`, `--pw_seqs_table_name_col`,
+  `--pw_seqs_table_target_col`) — regions from a sequences table.
+
+**Key options** (see [`conf/params/pathweaver.config`](conf/params/pathweaver.config)):
+`--pw_samples_file`, `--bams_file_ending` (default `.sorted.bam`),
+`--pw_overwrite_dir`, `--render_pw_report`, `--pw_ncpus`, `--pw_pop_clustering_ncpus`,
+`--run_sub_segments_determination`, `--pw_pop_clustering_extra_args`.
 
 ```bash
 nextflow run elucidatornf/pathweaver_extract_regions.nf \
       --bams_dir /data/pf/bams \
+      --bams_file_ending .sorted.bam \
       --pw_bed_fnp regions.bed \
       --genome_fnp pf_genomes/genomes/Pf3D7.fasta \
-      --outdir SIMPLseq \
+      --outdir pathweaver_results \
       --do_variant_calling \
       --meta_fnp /data/pf/metadata/meta.tab.txt \
-      --render_pw_report
+      --render_pw_report \
       -profile <docker/singularity/apptainer/.../institute>
 ```
 
-> [!WARNING]
-> Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
+### WGS preprocessing — `wgs_preprocess_pf.nf`
+
+**Required:** `--input_fastq_dir`, `--outdir`, `--wgs_host1_filter_genome_fasta_fnp`,
+`--wgs_host1_filter_contigs_fnp`, `--wgs_host2_filter_genome_fasta_fnp`,
+`--wgs_host2_filter_contigs_fnp`, `--wgs_final_genome_fasta_fnp`.
+
+**Key options** (see [`conf/params/wgs.config`](conf/params/wgs.config) /
+[`conf/params/wgs_common.config`](conf/params/wgs_common.config)):
+`--wgs_samples_keep_file`, `--wgs_rename_tsv`, `--wgs_skip_existing`,
+`--wgs_host_filter_min_mapq`, `--wgs_host_filter_any_mate`,
+`--wgs_host_filter_filter_with_unmapped_mate`.
+
+```bash
+nextflow run elucidatornf/wgs_preprocess_pf.nf \
+      --input_fastq_dir fastq/ \
+      --wgs_host1_filter_genome_fasta_fnp human.fasta \
+      --wgs_host1_filter_contigs_fnp human_contigs.txt \
+      --wgs_host2_filter_genome_fasta_fnp anopheles.fasta \
+      --wgs_host2_filter_contigs_fnp anopheles_contigs.txt \
+      --wgs_final_genome_fasta_fnp Pf3D7.fasta \
+      --outdir wgs_preprocessed \
+      -profile <docker/singularity/apptainer/.../institute>
+```
+
+### RNA-seq processing — `rnaseq_process_pf.nf`
+
+**Required:** `--input_fastq_dir`, `--outdir`, `--rnaseq_host1_filter_genome_fasta_fnp`,
+`--rnaseq_host1_filter_contigs_fnp`, `--rnaseq_host2_filter_genome_fasta_fnp`,
+`--rnaseq_host2_filter_contigs_fnp`, `--rnaseq_salmon_index`,
+`--single_cell_seurat_r_object_fnp`.
+
+**Key options:** shares the host-filter options in
+[`conf/params/wgs_common.config`](conf/params/wgs_common.config).
+
+```bash
+nextflow run elucidatornf/rnaseq_process_pf.nf \
+      --input_fastq_dir fastq/ \
+      --rnaseq_host1_filter_genome_fasta_fnp human.fasta \
+      --rnaseq_host1_filter_contigs_fnp human_contigs.txt \
+      --rnaseq_host2_filter_genome_fasta_fnp anopheles.fasta \
+      --rnaseq_host2_filter_contigs_fnp anopheles_contigs.txt \
+      --rnaseq_salmon_index salmon_index/ \
+      --single_cell_seurat_r_object_fnp reference.rds \
+      --outdir rnaseq_processed \
+      -profile <docker/singularity/apptainer/.../institute>
+```
+
+### Index genomes — `index_genomes.nf`
+
+**Required:** `--genome_dir` (a directory of genome FASTA files to index).
+
+```bash
+nextflow run elucidatornf/index_genomes.nf \
+      --genome_dir /tank/data/plasmodium/genomes/pf/genomes/ \
+      -profile <docker/singularity/apptainer/.../institute>
+```
 
 ## Credits
 
 nickjhathaway/elucidatornf was originally written by Nicholas Hathaway.
-
-We thank the following people for their extensive assistance in the development of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
 
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
 
 ## Citations
-
-<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use nickjhathaway/elucidatornf for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 

@@ -12,17 +12,6 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["outdir"],
             "properties": {
-                "input": {
-                    "type": "string",
-                    "format": "file-path",
-                    "exists": true,
-                    "schema": "assets/schema_input.json",
-                    "mimetype": "text/csv",
-                    "pattern": "^\\S+\\.csv$",
-                    "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row.",
-                    "fa_icon": "fas fa-file-csv"
-                },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",
@@ -43,14 +32,6 @@
                     "description": "Git commit id for Institutional configs.",
                     "default": "master",
                     "hidden": true,
-                    "fa_icon": "fas fa-users-cog"
-                },
-                "custom_config_base": {
-                    "type": "string",
-                    "description": "Base directory for Institutional configs.",
-                    "default": "https://raw.githubusercontent.com/nf-core/configs/master",
-                    "hidden": true,
-                    "help_text": "If you're running offline, Nextflow will not be able to fetch the institutional config files from the internet. If you don't need them, then this is not a problem. If you do need them, you should download the files from the repo and tell Nextflow where to find them with this parameter.",
                     "fa_icon": "fas fa-users-cog"
                 },
                 "config_profile_name": {
@@ -112,13 +93,6 @@
                     "description": "Boolean whether to validate parameters against the schema at runtime",
                     "default": true,
                     "fa_icon": "fas fa-check-square",
-                    "hidden": true
-                },
-                "pipelines_testdata_base_path": {
-                    "type": "string",
-                    "fa_icon": "far fa-check-circle",
-                    "description": "Base URL or local path to location of pipeline test dataset files",
-                    "default": "https://raw.githubusercontent.com/nf-core/test-datasets/",
                     "hidden": true
                 }
             }
@@ -215,7 +189,7 @@
                 },
                 "nanopore_primers_errors_allowed": {
                     "type": "integer",
-                    "default": 1,
+                    "default": 2,
                     "description": "the errors to allow in the determination of default parameters when extracting from genomes"
                 },
                 "nanopore_clustering_ncpus": {
@@ -260,7 +234,7 @@
                 },
                 "known_amino_acid_changes_fnp": {
                     "type": "string",
-                    "default": "/Users/nick/Documents/sourceCodes/nickjhathaway-elucidatornf/etc/EMPTY_FILE.txt",
+                    "default": "/Users/nhathaway/hathaway/elucidatornf/etc/EMPTY_FILE.txt",
                     "description": "a file of known amino acid changes"
                 },
                 "vc_extra_args": {
@@ -277,32 +251,17 @@
             "properties": {
                 "max_time": {
                     "type": "string",
-                    "default": "4h",
+                    "default": "3d",
                     "description": "the max amount of time to use per a job"
-                },
-                "resources": {
-                    "type": "string",
-                    "default": "[max_memory:'63 GB', max_memory_int:'63', max_memory_adjusted:false, max_cpus:15, max_cpus_adjusted:false, max_cpus_75:11, max_cpus_50:8, max_cpus_1:1]",
-                    "description": "a dictionary of resource auto-determined per available"
-                },
-                "max_memory": {
-                    "type": "string",
-                    "default": "63 GB",
-                    "description": "the max memory to use per job"
                 },
                 "max_retry": {
                     "type": "integer",
                     "default": 3,
                     "description": "the max number of retries per job"
                 },
-                "max_concurrent_tasks": {
-                    "type": "integer",
-                    "default": 15,
-                    "description": "the maximum number of concurrent jobs to run"
-                },
                 "max_cpus": {
                     "type": "integer",
-                    "default": 15,
+                    "default": 16,
                     "description": "the maximum number of cpus per job"
                 }
             }
@@ -361,7 +320,7 @@
     "properties": {
         "empty_file_fnp": {
             "type": "string",
-            "default": "/Users/nick/Documents/sourceCodes/nickjhathaway-elucidatornf/etc/EMPTY_FILE.txt",
+            "default": "/Users/nhathaway/hathaway/elucidatornf/etc/EMPTY_FILE.txt",
             "description": "An empty file to be used as a default for file options"
         },
         "genome_fnp": {
@@ -370,12 +329,218 @@
         },
         "meta_fnp": {
             "type": "string",
-            "default": "/Users/nick/Documents/sourceCodes/nickjhathaway-elucidatornf/etc/EMPTY_FILE.txt",
+            "default": "/Users/nhathaway/hathaway/elucidatornf/etc/EMPTY_FILE.txt",
             "description": "Sample meta data, 1 column should be named sample, the rest are meta data"
         },
         "meta_fields_to_calc_pop_diffs": {
             "type": "string",
             "description": "When supplying meta data, use these field when doing population differentiation calculations"
+        },
+        "machine_cpus": {
+            "type": "integer",
+            "default": 18,
+            "description": "the cpus currently available on the machine"
+        },
+        "machine_memory": {
+            "type": "string",
+            "default": "48 GB",
+            "description": "the memory currently available on the machine"
+        },
+        "max_task_cpus": {
+            "type": "integer",
+            "default": 16,
+            "description": "the max CPUs to allow for a task"
+        },
+        "max_task_memory": {
+            "type": "string",
+            "default": "128 GB",
+            "description": "the max memory to allow for a task"
+        },
+        "max_task_time": {
+            "type": "string",
+            "default": "3d",
+            "description": "the maximum amount of time to allow a single task to run"
+        },
+        "max_executor_cpus": {
+            "type": "string",
+            "description": "the maximum number of CPUs to use during running the whole pipeline"
+        },
+        "max_executor_memory": {
+            "type": "string",
+            "description": "the maximum amount of memory to allow the pipeline to use"
+        },
+        "trace_timestamp": {
+            "type": "string",
+            "description": "the current time and ate"
+        },
+        "vc_correct_small_homopolymer_errors": {
+            "type": "string",
+            "description": "if set, will turn on homopolymer gap correction during variant calling on microhaplotypes"
+        },
+        "nanopore_rename_key_fnp": {
+            "type": "string",
+            "description": "a file for renaming the input samples"
+        },
+        "nanopore_render_clustering_report": {
+            "type": "boolean",
+            "description": "quarto render the dashboard for nanopore"
+        },
+        "amplicon_clustering_pop_clustering_extra_args": {
+            "type": "string",
+            "default": "--removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes",
+            "description": "the arguments to give the amplicon population clustering for both nanopore/illumina"
+        },
+        "amplicon_clustering_test_number": {
+            "type": "integer",
+            "description": "the amount of testing for detecting extractor parameters determination"
+        },
+        "amplicon_clustering_number_of_files_to_investigate": {
+            "type": "integer",
+            "description": "the number of files to use for auto determining extractor flags"
+        },
+        "wgs_samples_keep_file": {
+            "type": "string",
+            "description": "a file where each line is a sample name for processing, only process these samples"
+        },
+        "wgs_rename_tsv": {
+            "type": "string",
+            "description": "a two column file for renaming wgs file"
+        },
+        "wgs_skip_existing": {
+            "type": "boolean",
+            "default": true,
+            "description": "skip existing bams"
+        },
+        "wgs_host_filter_any_mate": {
+            "type": "boolean",
+            "default": true
+        },
+        "wgs_host_filter_filter_with_unmapped_mate": {
+            "type": "boolean",
+            "default": true
+        },
+        "wgs_host_filter_min_mapq": {
+            "type": "integer",
+            "default": 0
+        },
+        "illumina_clustering_paired_end_length": {
+            "type": "integer",
+            "description": "the length of the paired in for the files"
+        },
+        "illumina_clustering_error_profile": {
+            "type": "string",
+            "default": "illumina",
+            "description": "the profile to use for clsutering"
+        },
+        "illumina_clustering_min_sample_read_count": {
+            "type": "integer",
+            "default": 50,
+            "description": "the minimum number of reads to cluster a sample"
+        },
+        "illumina_clustering_population_ncpus": {
+            "type": "integer",
+            "default": 2,
+            "description": "the number of cpus to use during clustering"
+        },
+        "illumina_clustering_trim_front": {
+            "type": "integer",
+            "default": 1,
+            "description": "the trimming of the front after removing primers (a base with a common source of artifact)"
+        },
+        "illumina_clustering_trim_back": {
+            "type": "integer",
+            "default": 1,
+            "description": "the trimming of the back after removing primers (a base with a common source of artifact)"
+        },
+        "nanopore_clustering_trim_front": {
+            "type": "integer",
+            "default": 1,
+            "description": "the trimming of the front after removing primers (a base with a common source of artifact)"
+        },
+        "nanopore_clustering_trim_back": {
+            "type": "integer",
+            "default": 1,
+            "description": "the trimming of the back after removing primers (a base with a common source of artifact)"
+        },
+        "nanopore_clustering_max_reads_use": {
+            "type": "integer",
+            "description": "maximum number of reads to use during clustering"
+        },
+        "nanopore_extractor_use_inner_primers": {
+            "type": "boolean",
+            "description": "during nanopore clustering, use the inner primers instead of the default primers"
+        },
+        "nanopore_clustering_lower_base": {
+            "type": "string",
+            "description": "what to do with lower bases (which is what is done to primers)"
+        },
+        "nanopore_extractor_primer_within_start": {
+            "type": "integer",
+            "description": "how much inwards into the target to search for the primers"
+        },
+        "pw_extract_region_assemblies_extra_args": {
+            "type": "string",
+            "description": "extract arguments to give to the PathWeaver extracting of a region"
+        },
+        "pw_pop_clustering_extra_args": {
+            "type": "string",
+            "description": "extra arguments to give tot he pop clustering during PathWeaver"
+        },
+        "pw_overwrite_dir": {
+            "type": "boolean",
+            "description": "by default PathWeaver just fills in the directory if it already exists including cached PathWeaver runs"
+        },
+        "sub_segments_uniqueHapCountCutOff": {
+            "type": "integer",
+            "default": 1,
+            "description": "during sub segments creation, filter off clusters with only this amount of  reads"
+        },
+        "sub_segments_extra_args": {
+            "type": "string",
+            "description": "extra arguments to give sub segment analysis"
+        },
+        "rnaseq_host1_filter_genome_fasta_fnp": {
+            "type": "string",
+            "description": "the filename path to the first filter genome file"
+        },
+        "rnaseq_host1_filter_contigs_fnp": {
+            "type": "string",
+            "description": "the filename path to contigs to remove for the first filter"
+        },
+        "rnaseq_host2_filter_genome_fasta_fnp": {
+            "type": "string",
+            "description": "the filename path to the second filter genome file"
+        },
+        "rnaseq_host2_filter_contigs_fnp": {
+            "type": "string",
+            "description": "the filename path to contigs to remove for the second filter"
+        },
+        "rnaseq_salmon_index": {
+            "type": "string",
+            "description": "the index for salmon quant"
+        },
+        "single_cell_seurat_r_object_fnp": {
+            "type": "string",
+            "description": "the single cell object Rds file which defines the cell deconvolution"
+        },
+        "wgs_host1_filter_genome_fasta_fnp": {
+            "type": "string",
+            "description": "the filename path to the first filter genome file"
+        },
+        "wgs_host1_filter_contigs_fnp": {
+            "type": "string",
+            "description": "the filename path to contigs to remove for the first filter"
+        },
+        "wgs_host2_filter_genome_fasta_fnp": {
+            "type": "string",
+            "description": "the filename path to the second filter genome file"
+        },
+        "wgs_host2_filter_contigs_fnp": {
+            "type": "string",
+            "description": "the filename path to contigs to remove for the second filter"
+        },
+        "wgs_final_genome_fasta_fnp": {
+            "type": "string"
         }
     },
     "required": ["genome_fnp"]
