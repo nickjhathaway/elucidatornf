@@ -21,20 +21,12 @@ process EXTRACT_REGION_ASSEMBLIES {
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
     def outdir     = "${sample}_${dirstub}"
-    def pub_outdir = "${pub_dir}/${outdir}"
 
+    // Note: samples whose results already exist are filtered out in the calling
+    // workflow (the existing output is channelled directly), so this process only
+    // runs for samples that actually need computing -- no copy-in / copy-out.
     """
     set -euo pipefail
-
-    outdir="${outdir}"
-    pub_outdir="${pub_outdir}"
-
-    if [[ -d "\$pub_outdir" ]]; then
-        echo "[EXTRACT_REGION_ASSEMBLIES] Found existing results: \$pub_outdir"
-        rm -rf "\$outdir"
-        cp -a "\$pub_outdir" "\$outdir"
-        exit 0
-    fi
 
     PathWeaver BamExtractPathwaysFromRegion \\
         --bamExtractTrimToRegion \\
@@ -42,7 +34,7 @@ process EXTRACT_REGION_ASSEMBLIES {
         --genomeDir ${genome_dir_fnp} \\
         --primaryGenome ${primary_genome} \\
         --bam ${bam_fnp} \\
-        --dout "\$outdir" \\
+        --dout "${outdir}" \\
         --overWriteDir \\
         --numThreads ${params.pw_ncpus} \\
         ${extra_args}

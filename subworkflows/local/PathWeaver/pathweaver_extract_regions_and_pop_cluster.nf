@@ -9,6 +9,14 @@ include { VARIANT_CALL_ON_HAP_TABLE } from '../../../modules/local/variant_call_
 include { VARIANT_CALL_ON_HAP_TABLE as VARIANT_CALL_ON_HAP_TABLE_ON_TRIMMED } from '../../../modules/local/variant_call_on_hap_table/main.nf'
 
 
+// A sample's assemblies are considered complete (and safe to skip re-running)
+// only when these key result files are all present in its output dir.
+def pwAssemblyComplete(dir) {
+    file("${dir}/final/allFinal.fasta").exists() &&
+    file("${dir}/final/basicInfoPerRegion.tab.txt").exists() &&
+    file("${dir}/partial/allPartial.fasta").exists()
+}
+
 
 workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     take:
@@ -66,14 +74,26 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
         )
     }
 
-    // run PathWeaver on each
-    EXTRACT_REGION_ASSEMBLIES(input_ch)
+    // Skip samples whose assemblies already exist: channel the existing output
+    // directly instead of re-running the (expensive) extraction + copy-in/out.
+    assembly_inputs = input_ch.branch { sample, bam_fnp, bam_bai_fnp, bed_fnp, gdir, primary_genome, dirstub, pub_dir ->
+        done: pwAssemblyComplete("${pub_dir}/${sample}_${dirstub}")
+            return file("${pub_dir}/${sample}_${dirstub}")
+        todo: true
+            return tuple(sample, bam_fnp, bam_bai_fnp, bed_fnp, gdir, primary_genome, dirstub, pub_dir)
+    }
+
+    // run PathWeaver only on samples that still need it
+    EXTRACT_REGION_ASSEMBLIES(assembly_inputs.todo)
+
+    // all assemblies = freshly computed + already-existing
+    assemblies_ch = EXTRACT_REGION_ASSEMBLIES.out.sample_results.mix(assembly_inputs.done)
 
     // concatenate the results files
-    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(EXTRACT_REGION_ASSEMBLIES.out | collect, reports_dir.toString())
+    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_ch | collect, reports_dir.toString())
 
     // run population clustering
-    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, pop_clus_dir.toString())
+    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_ch | collect, pop_clus_dir.toString())
 
     channel.empty().set { variant_calling_reports_dir }
 
@@ -105,7 +125,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     }
     emit:
     samples = samples
-    assemblies = EXTRACT_REGION_ASSEMBLIES.out
+    assemblies = assemblies_ch
     pop_clustering_res_pop_clustering_dir = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir
     pop_clustering_res_all_selected_clusters_info = PATHWEAVER_POP_CLUSTERING.out.all_selected_clusters_info
     pop_clustering_res_targets_with_results = PATHWEAVER_POP_CLUSTERING.out.targets_with_results
@@ -170,17 +190,29 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
             reports_dir.toString()
         )
     }
-    // run PathWeaver on each
-    EXTRACT_REGION_ASSEMBLIES(input_ch)
+    // Skip samples whose assemblies already exist: channel the existing output
+    // directly instead of re-running the (expensive) extraction + copy-in/out.
+    assembly_inputs = input_ch.branch { sample, bam_fnp, bam_bai_fnp, bed_fnp, gdir, primary_genome, dirstub, pub_dir ->
+        done: pwAssemblyComplete("${pub_dir}/${sample}_${dirstub}")
+            return file("${pub_dir}/${sample}_${dirstub}")
+        todo: true
+            return tuple(sample, bam_fnp, bam_bai_fnp, bed_fnp, gdir, primary_genome, dirstub, pub_dir)
+    }
+
+    // run PathWeaver only on samples that still need it
+    EXTRACT_REGION_ASSEMBLIES(assembly_inputs.todo)
+
+    // all assemblies = freshly computed + already-existing
+    assemblies_ch = EXTRACT_REGION_ASSEMBLIES.out.sample_results.mix(assembly_inputs.done)
 
     // concatenate the results files
-    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(EXTRACT_REGION_ASSEMBLIES.out | collect, reports_dir.toString())
+    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_ch | collect, reports_dir.toString())
 
     //run population clustering
     //run with full region
-    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, full_pop_clus_dir.toString())
+    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_ch | collect, full_pop_clus_dir.toString())
     //run with inner trimmed region
-    PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), EXTRACT_REGION_ASSEMBLIES.out | collect, trimmed_pop_clus_dir.toString(),
+    PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_ch | collect, trimmed_pop_clus_dir.toString(),
                                             trim_bed_fnp_ch, genome_twobit_fnp)
     channel.empty().set { variant_calling_reports_dir }
     channel.empty().set { trimmed_variant_calling_reports_dir }
@@ -230,7 +262,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     }
     emit:
     samples = samples
-    assemblies = EXTRACT_REGION_ASSEMBLIES.out
+    assemblies = assemblies_ch
     pop_clustering_res_pop_clustering_dir = PATHWEAVER_POP_CLUSTERING.out.pop_clustering_dir
     pop_clustering_res_all_selected_clusters_info = PATHWEAVER_POP_CLUSTERING.out.all_selected_clusters_info
     pop_clustering_res_targets_with_results = PATHWEAVER_POP_CLUSTERING.out.targets_with_results
