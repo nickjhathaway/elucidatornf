@@ -130,9 +130,9 @@ Please correct the above issues and re-run.
     primers_fnp_ch = primers_fnp
 
 
-    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, paired_end_length, primers_errors_allowed, params.resources.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, paired_end_length, primers_errors_allowed, params.max_cpus)
 
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "illumina", params.resources.max_cpus, extraction_reports_dir)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir)
     //@todo, concatenate lanes if multiple present
     fastq_input_ch = channel.fromFilePairs(
         ["${input_fastq_dir}/*_{1,2}{_001,}.fastq{.gz,}",

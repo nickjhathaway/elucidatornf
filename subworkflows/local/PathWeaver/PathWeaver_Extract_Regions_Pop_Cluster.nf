@@ -210,7 +210,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
     DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE(
         file(seqs_table_fnp), file(genome_dir_info), file("${genome_fnp}").name,
             seqs_table_seqs_col, seqs_table_name_col, seqs_table_target_col,
-            params.resources.max_cpus, seqsInfoDir)
+            params.max_cpus, seqsInfoDir)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE.out.targets_bed, genome_fnp, results_dir, meta_fnp)
     workflow.onComplete {
@@ -240,7 +240,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     gff_dir = file("${top_genome_info}/info/gff/")
     genome_dir = file("${genome_fnp}").getParent()
     primerInfoDir.mkdirs()
-    GEN_TARGET_INFO_FROM_GENOME(primers_fnp, primerInfoDir, genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.resources.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOME(primers_fnp, primerInfoDir, genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.max_cpus)
 
 
     top_genome_info = file("${genome_fnp}").getParent().getParent()

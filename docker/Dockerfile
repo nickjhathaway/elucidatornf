@@ -7,6 +7,9 @@ ARG TIME_ZONE=Etc/UTC
 ARG ELUCIDATOR_VERSION=develop
 ARG LANG="en_US.UTF-8"
 
+RUN ulimit -n 10000
+
+
 # All apt installs in one layer — install everything upfront, clean once
 RUN apt-get update && apt-get -yq dist-upgrade && \
     apt-get install -yq --no-install-recommends \

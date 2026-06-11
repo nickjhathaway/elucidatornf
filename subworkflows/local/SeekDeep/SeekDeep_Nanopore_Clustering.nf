@@ -136,12 +136,12 @@ Please correct the above issues and re-run.
     if (params.nanopore_extractor_use_inner_primers){
         def initial_primer_info_dir = file("${output_dir}/primerInfo/initialPrimerInfo")
         initial_primer_info_dir.mkdirs()
-        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
+        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
         primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
     }
-    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.resources.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
 
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.resources.max_cpus, extraction_reports_dir)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir)
 
     fastq_input_ch = channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
 
