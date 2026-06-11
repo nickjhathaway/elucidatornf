@@ -187,6 +187,36 @@ nextflow run elucidatornf/index_genomes.nf \
       -profile <docker/singularity/apptainer/.../institute>
 ```
 
+## Shell completion (bash)
+
+A bash completion is provided under [`completions/`](completions/). Once enabled,
+it detects the workflow by the `.nf` basename (so full or partial paths both
+work) and tab-completes only that workflow's `--flags`, with file/dir completion
+for path-valued flags and `-profile` values. For any command that is **not** one
+of these workflows (other pipelines, `nextflow log`/`pull`/…), it delegates to
+nextflow's own completion if one is installed — so source this **after** nextflow's
+completion (e.g. after the `bash-completion` package) for that hand-off to work.
+
+Enable it with one of:
+
+```bash
+# source from your shell startup
+echo 'source /path/to/elucidatornf/completions/elucidatornf.bash' >> ~/.bashrc
+
+# or install into the user completion dir (auto-loaded)
+cp completions/elucidatornf.bash ~/.local/share/bash-completion/completions/nextflow
+```
+
+Then open a new shell (or `source ~/.bashrc`). Example:
+
+```bash
+nextflow run /path/to/elucidatornf/pathweaver_extract_regions.nf --<TAB>
+# -> --bams_dir --pw_bed_fnp --genome_fnp --do_variant_calling --outdir ...
+```
+
+The flag lists mirror `conf/params/*.config`; if you add params, refresh them
+with `./completions/generate_completion.sh`.
+
 ## Credits
 
 nickjhathaway/elucidatornf was originally written by Nicholas Hathaway.
