@@ -117,7 +117,7 @@ workflow EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES {
 
     main:
     targets = pop_clustering_res_targets_with_results.splitText()
-                .map { it.trim() }
+                .map { line -> line.trim() }
 
     targets_input_ch = targets.combine(pop_clustering_res_pop_clustering_dir)
         .map{ tar, pop_clustering_dir ->
@@ -328,7 +328,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
 
     main:
 
-    bed_fnp_ch = Channel.fromPath(input_bed_fnp)
+    bed_fnp_ch = channel.fromPath(input_bed_fnp)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, bed_fnp_ch, genome_fnp, results_dir, meta_fnp)
     workflow.onComplete {
