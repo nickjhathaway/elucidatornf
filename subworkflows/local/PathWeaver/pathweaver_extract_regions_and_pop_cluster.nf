@@ -89,11 +89,17 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     // all assemblies = freshly computed + already-existing
     assemblies_ch = EXTRACT_REGION_ASSEMBLIES.out.sample_results.mix(assembly_inputs.done)
 
+    // Pass the SINGLE parent dir (rawResults) once all assemblies are ready, instead
+    // of staging tens of thousands of child dirs. A huge nxf_stage makes bash
+    // segfault; one dir keeps it tiny and is bind-mounted into containers natively.
+    // (collect() is only the "wait for all extraction" barrier -- the list is not staged.)
+    assemblies_root = assemblies_ch.collect().map { _done -> reports_dir }.first()
+
     // concatenate the results files
-    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_ch | collect, reports_dir.toString())
+    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, reports_dir.toString())
 
     // run population clustering
-    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_ch | collect, pop_clus_dir.toString())
+    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, pop_clus_dir.toString())
 
     channel.empty().set { variant_calling_reports_dir }
 
@@ -205,14 +211,20 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     // all assemblies = freshly computed + already-existing
     assemblies_ch = EXTRACT_REGION_ASSEMBLIES.out.sample_results.mix(assembly_inputs.done)
 
+    // Pass the SINGLE parent dir (rawResults) once all assemblies are ready, instead
+    // of staging tens of thousands of child dirs. A huge nxf_stage makes bash
+    // segfault; one dir keeps it tiny and is bind-mounted into containers natively.
+    // (collect() is only the "wait for all extraction" barrier -- the list is not staged.)
+    assemblies_root = assemblies_ch.collect().map { _done -> reports_dir }.first()
+
     // concatenate the results files
-    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_ch | collect, reports_dir.toString())
+    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, reports_dir.toString())
 
     //run population clustering
     //run with full region
-    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_ch | collect, full_pop_clus_dir.toString())
+    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, full_pop_clus_dir.toString())
     //run with inner trimmed region
-    PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_ch | collect, trimmed_pop_clus_dir.toString(),
+    PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, trimmed_pop_clus_dir.toString(),
                                             trim_bed_fnp_ch, genome_twobit_fnp)
     channel.empty().set { variant_calling_reports_dir }
     channel.empty().set { trimmed_variant_calling_reports_dir }

@@ -4,7 +4,7 @@ process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
     publishDir { "${pub_results_dir}" }, mode: 'copy', overwrite: true
 
     input:
-    path res_folders
+    path assemblies_root
     val pub_results_dir
 
     output:
@@ -16,11 +16,13 @@ process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
     """
     rm -f dirs.txt allBasicInfoFiles.txt allFinalFastaFnps.txt allPartialFastaFnps.txt
 
-    # List the staged assembly dirs WITHOUT expanding tens of thousands of paths
-    # onto a command line. printf is a bash builtin, so the glob is expanded
-    # in-shell and is not subject to ARG_MAX (unlike `ls */` or `for x in \${...}`).
+    # `assemblies_root` is the SINGLE staged parent dir holding every per-sample
+    # assembly dir. Staging one dir (vs tens of thousands of child paths) keeps
+    # nxf_stage tiny -- a huge nxf_stage makes bash segfault -- and Nextflow
+    # bind-mounts this one dir into containers automatically. printf is a bash
+    # builtin, so the glob is expanded in-shell (no ARG_MAX issue).
     shopt -s nullglob
-    printf '%s\\n' */ | sed 's#/\$##' > dirs.txt
+    printf '%s\\n' ${assemblies_root}/*/ | sed 's#/\$##' > dirs.txt
 
     # Build the per-type file manifests (one path per line).
     sed 's#\$#/final/basicInfoPerRegion.tab.txt#' dirs.txt > allBasicInfoFiles.txt
