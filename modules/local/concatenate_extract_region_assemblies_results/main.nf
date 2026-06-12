@@ -14,20 +14,24 @@ process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
 
     script:
     """
-    rm -f allBasicInfoFiles.txt
-    rm -f allFinalFastaFnps.txt
-    rm -f allPartialFastaFnps.txt
-    for x in ${res_folders}; do
-        echo \${x}/final/basicInfoPerRegion.tab.txt >> allBasicInfoFiles.txt
-        echo \${x}/final/allFinal.fasta >> allFinalFastaFnps.txt
-        echo \${x}/partial/allPartial.fasta >> allPartialFastaFnps.txt
-    done
+    rm -f dirs.txt allBasicInfoFiles.txt allFinalFastaFnps.txt allPartialFastaFnps.txt
+
+    # List the staged assembly dirs WITHOUT expanding tens of thousands of paths
+    # onto a command line. printf is a bash builtin, so the glob is expanded
+    # in-shell and is not subject to ARG_MAX (unlike `ls */` or `for x in \${...}`).
+    shopt -s nullglob
+    printf '%s\\n' */ | sed 's#/\$##' > dirs.txt
+
+    # Build the per-type file manifests (one path per line).
+    sed 's#\$#/final/basicInfoPerRegion.tab.txt#' dirs.txt > allBasicInfoFiles.txt
+    sed 's#\$#/final/allFinal.fasta#'             dirs.txt > allFinalFastaFnps.txt
+    sed 's#\$#/partial/allPartial.fasta#'         dirs.txt > allPartialFastaFnps.txt
 
     elucidator rBind --files allBasicInfoFiles.txt --delim tab --header --overWrite --out allBasicInfo.tsv.gz
 
-    cat allFinalFastaFnps.txt
-    cat \$(cat allFinalFastaFnps.txt) | pigz > allFinal.fasta.gz
-    cat \$(cat allPartialFastaFnps.txt) | pigz > allPartial.fasta.gz
-
+    # xargs batches the file list under ARG_MAX; `cat \$(cat ...)` would overflow.
+    # NUL-delimited so it is robust to any path and to GNU/BSD xargs.
+    tr '\\n' '\\0' < allFinalFastaFnps.txt   | xargs -0 cat | pigz > allFinal.fasta.gz
+    tr '\\n' '\\0' < allPartialFastaFnps.txt | xargs -0 cat | pigz > allPartial.fasta.gz
     """
 }
