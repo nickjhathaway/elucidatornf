@@ -7,6 +7,7 @@ include { PATHWEAVER_POP_CLUSTERING } from '../../../modules/local/pathweaver_po
 include { PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED } from '../../../modules/local/pathweaver_pop_clustering'
 include { VARIANT_CALL_ON_HAP_TABLE } from '../../../modules/local/variant_call_on_hap_table/main.nf'
 include { VARIANT_CALL_ON_HAP_TABLE as VARIANT_CALL_ON_HAP_TABLE_ON_TRIMMED } from '../../../modules/local/variant_call_on_hap_table/main.nf'
+include { WAIT_FOR_ASSEMBLIES } from '../../../modules/local/wait_for_assemblies'
 
 
 // A sample's assemblies are considered complete (and safe to skip re-running)
@@ -89,11 +90,14 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     // all assemblies = freshly computed + already-existing
     assemblies_ch = EXTRACT_REGION_ASSEMBLIES.out.sample_results.mix(assembly_inputs.done)
 
-    // Pass the SINGLE parent dir (rawResults) once all assemblies are ready, instead
-    // of staging tens of thousands of child dirs. A huge nxf_stage makes bash
-    // segfault; one dir keeps it tiny and is bind-mounted into containers natively.
-    // (collect() is only the "wait for all extraction" barrier -- the list is not staged.)
-    assemblies_root = assemblies_ch.collect().map { _done -> reports_dir }.first()
+    // Pass the SINGLE parent dir (rawResults) instead of staging tens of thousands of
+    // child dirs -- a huge nxf_stage makes bash segfault, and one dir is bind-mounted
+    // into containers natively. Because that dir is the publishDir target (populated
+    // asynchronously), gate downstream on a completion guard that waits until every
+    // expected assembly is fully written before the directory is read.
+    expected_names = assemblies_ch.map { d -> d.name }.collectFile(name: 'expected_assembly_dirs.txt', newLine: true)
+    WAIT_FOR_ASSEMBLIES(expected_names, reports_dir)
+    assemblies_root = WAIT_FOR_ASSEMBLIES.out.ready.first().map { _ready -> reports_dir }
 
     // concatenate the results files
     CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, reports_dir.toString())
@@ -211,11 +215,14 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     // all assemblies = freshly computed + already-existing
     assemblies_ch = EXTRACT_REGION_ASSEMBLIES.out.sample_results.mix(assembly_inputs.done)
 
-    // Pass the SINGLE parent dir (rawResults) once all assemblies are ready, instead
-    // of staging tens of thousands of child dirs. A huge nxf_stage makes bash
-    // segfault; one dir keeps it tiny and is bind-mounted into containers natively.
-    // (collect() is only the "wait for all extraction" barrier -- the list is not staged.)
-    assemblies_root = assemblies_ch.collect().map { _done -> reports_dir }.first()
+    // Pass the SINGLE parent dir (rawResults) instead of staging tens of thousands of
+    // child dirs -- a huge nxf_stage makes bash segfault, and one dir is bind-mounted
+    // into containers natively. Because that dir is the publishDir target (populated
+    // asynchronously), gate downstream on a completion guard that waits until every
+    // expected assembly is fully written before the directory is read.
+    expected_names = assemblies_ch.map { d -> d.name }.collectFile(name: 'expected_assembly_dirs.txt', newLine: true)
+    WAIT_FOR_ASSEMBLIES(expected_names, reports_dir)
+    assemblies_root = WAIT_FOR_ASSEMBLIES.out.ready.first().map { _ready -> reports_dir }
 
     // concatenate the results files
     CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, reports_dir.toString())
