@@ -336,6 +336,10 @@
             "type": "string",
             "description": "When supplying meta data, use these field when doing population differentiation calculations"
         },
+        "container_image": {
+            "type": "string",
+            "description": "Override the container for the apptainer/singularity profiles; pass a file:// URI or absolute path to a prebuilt SIF to skip the pull/mksquashfs build"
+        },
         "machine_cpus": {
             "type": "integer",
             "default": 18,

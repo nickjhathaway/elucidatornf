@@ -81,19 +81,20 @@ RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
         ), ncpus = ${CPU_COUNT})" && \
     Rscript -e "\
         source('/opt/install_packages.R'); \
+        setRepositories(ind = 1:3);\
         install_cran(c( \
           'Seurat' \
-        ), ncpus = ${CPU_COUNT})" && \
-    Rscript -e " \
+        ), ncpus = ${CPU_COUNT})"
+    RUN Rscript -e " \
       if (!require('BiocManager', quietly=TRUE)) install.packages('BiocManager'); \
-      BiocManager::install(version='3.21', ask=FALSE);" && \
+      BiocManager::install(version='3.23', ask=FALSE);" && \
     Rscript -e " \
       source('/opt/install_packages.R'); \
       setRepositories(ind=1:3, addURLs=c('https://satijalab.r-universe.dev','https://bnprks.r-universe.dev/')); \
       install_cran(c('BPCells','presto','glmGamPoi'), ncpus=${CPU_COUNT})" && \
     Rscript -e "\
       source('/opt/install_packages.R'); \
-      install_bioconductor(c('Biostrings', 'pwalign', 'ggtree', 'ComplexHeatmap', 'MAST', 'SingleCellExperiment', 'TOAST'), version = '3.21')" &&\
+      install_bioconductor(c('Biostrings', 'pwalign', 'ggtree', 'ComplexHeatmap', 'MAST', 'SingleCellExperiment', 'TOAST'), version = '3.23')" &&\
     Rscript -e " \
       source('/opt/install_packages.R'); \
       setRepositories(ind = 1:3);\
