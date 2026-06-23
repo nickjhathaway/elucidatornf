@@ -43,16 +43,22 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Mi
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh \
  && /opt/conda/bin/mamba install -y -c bioconda -c conda-forge \
-      muscle minimap2 bowtie2 bwa samtools bcftools vcftools \
+      muscle minimap2 bowtie2 bwa samtools bcftools \
       bedtools seqkit hmmer blast salmon ncbi-datasets-cli \
-      gffread subread htseq mosdepth fastp seqtk mummer \
+      gffread subread mosdepth fastp seqtk mummer \
  && /opt/conda/bin/mamba clean -afy \
  && find /opt/conda -name "*.pyc" -delete \
  && find /opt/conda -name "*.a" -delete \
  # drop build-time artifacts we never use at runtime (only prebuilt tools run)
  && rm -rf /opt/conda/x86_64-conda-linux-gnu \
  && rm -rf /opt/conda/include \
- && rm -rf /opt/conda/pkgs/* /opt/conda/share/doc /opt/conda/share/man /opt/conda/share/info
+ && rm -rf /opt/conda/pkgs/* /opt/conda/share/doc /opt/conda/share/man /opt/conda/share/info \
+ # drop conda's python + conda/mamba machinery — unused at runtime: no compiled tool
+ # links libpython (verified), and the env-python3 helper scripts (bowtie2/blast) fall
+ # back to the system python 3.12.
+ && rm -rf /opt/conda/lib/python3.* /opt/conda/lib/libpython3.* \
+           /opt/conda/bin/python* /opt/conda/bin/pip* \
+           /opt/conda/bin/conda* /opt/conda/bin/mamba* /opt/conda/condabin
 
 ENV PATH="/opt/conda/bin:$PATH"
 

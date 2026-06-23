@@ -43,9 +43,9 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Mi
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh \
  && /opt/conda/bin/mamba install -y -c bioconda -c conda-forge \
-      muscle spades minimap2 bowtie2 bwa samtools bcftools vcftools \
+      muscle spades minimap2 bowtie2 bwa samtools bcftools \
       bedtools seqkit hmmer blast salmon ncbi-datasets-cli \
-      gffread subread htseq mosdepth fastp seqtk mummer \
+      gffread subread mosdepth fastp seqtk mummer \
  && /opt/conda/bin/mamba clean -afy \
  && find /opt/conda -name "*.pyc" -delete \
  && find /opt/conda -name "*.a" -delete \
