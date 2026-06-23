@@ -21,7 +21,7 @@ RUN apt-get update && apt-get -yq dist-upgrade && \
       python3-nbclient python3-nbconvert python3-ipykernel \
       python3-jupyter-client python3-jupyter-core \
       libharfbuzz-dev libfribidi-dev libicu-dev libhdf5-dev \
-      pigz ncbi-blast+ ncbi-tools-bin lastz cmake tzdata libuv1-dev\
+      pigz lastz cmake tzdata libuv1-dev\
       # R and CRAN repo
       r-base r-base-dev \
  && echo "deb https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" > /etc/apt/sources.list.d/cran.list \
@@ -44,7 +44,7 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Mi
  && rm /tmp/miniforge.sh \
  && /opt/conda/bin/mamba install -y -c bioconda -c conda-forge \
       muscle spades minimap2 bowtie2 bwa samtools bcftools vcftools \
-      bedtools seqkit rnabloom hmmer blast salmon bbmap ncbi-datasets-cli \
+      bedtools seqkit hmmer blast salmon ncbi-datasets-cli \
       gffread subread htseq mosdepth fastp seqtk mummer \
  && /opt/conda/bin/mamba clean -afy \
  && find /opt/conda -name "*.pyc" -delete \
