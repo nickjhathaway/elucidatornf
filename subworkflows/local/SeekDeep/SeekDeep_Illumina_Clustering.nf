@@ -84,6 +84,24 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
     }
 
     //
+    // 2b) Variant calling requires a primary genome. If it is left unset the
+    // default value (false) is interpolated into the file names, so the
+    // workflow tries to load "false.gff" / "false_inner.bed" and fails with a
+    // confusing missing-file error far downstream.
+    //
+    if (params.do_variant_calling) {
+        def vc_genome = (params.vc_primary_genome == null) ? "" : params.vc_primary_genome.toString().trim()
+        if (vc_genome == "" || vc_genome.toLowerCase() == "false") {
+            errors << "--vc_primary_genome must be supplied when --do_variant_calling is set"
+        } else {
+            def gff_obj = file("${gff_dir}/${vc_genome}.gff")
+            if (!gff_obj.exists()) {
+                errors << "Variant calling GFF not found for --vc_primary_genome '${vc_genome}': '${gff_obj}' (expected in --gff_dir)"
+            }
+        }
+    }
+
+    //
     // 3) Fail fast if validation failed
     //
     if (!errors.isEmpty()) {

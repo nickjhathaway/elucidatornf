@@ -108,6 +108,16 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     channel.empty().set { variant_calling_reports_dir }
 
     if (params.do_variant_calling){
+        // Variant calling needs the genome's GFF (derived from the genome file name).
+        // Fail early with a clear message instead of letting the variant caller error
+        // out downstream on a non-existent annotation file.
+        if (!file(gff_fnp).exists()) {
+            error """
+Variant calling requested (--do_variant_calling) but the genome GFF was not found:
+  ${gff_fnp}
+Expected at <genome_dir>/info/gff/${genome_base_name}.gff. Add the GFF for '${genome_base_name}' and re-run.
+"""
+        }
         variant_call_dir = file("${results_dir}/variantCalls")
         meta_fnp_for_variant_calling_ch = channel.fromPath(params.meta_fnp)
         if ("EMPTY_FILE.txt" != file(params.meta_fnp).name ){
@@ -236,6 +246,16 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     channel.empty().set { variant_calling_reports_dir }
     channel.empty().set { trimmed_variant_calling_reports_dir }
     if (params.do_variant_calling){
+        // Variant calling needs the genome's GFF (derived from the genome file name).
+        // Fail early with a clear message instead of letting the variant caller error
+        // out downstream on a non-existent annotation file.
+        if (!file(gff_fnp).exists()) {
+            error """
+Variant calling requested (--do_variant_calling) but the genome GFF was not found:
+  ${gff_fnp}
+Expected at <genome_dir>/info/gff/${genome_base_name}.gff. Add the GFF for '${genome_base_name}' and re-run.
+"""
+        }
         variant_call_dir = file("${results_dir}/reports/full/variantCalls")
         trimmed_variant_call_dir = file("${results_dir}/variantCalls")
         meta_fnp_for_variant_calling_ch = channel.fromPath(params.meta_fnp)
