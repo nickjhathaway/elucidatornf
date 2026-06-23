@@ -49,7 +49,10 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Mi
  && /opt/conda/bin/mamba clean -afy \
  && find /opt/conda -name "*.pyc" -delete \
  && find /opt/conda -name "*.a" -delete \
- && rm -rf /opt/conda/pkgs/* /opt/conda/share/doc /opt/conda/share/man
+ # drop build-time artifacts we never use at runtime (only prebuilt tools run)
+ && rm -rf /opt/conda/x86_64-conda-linux-gnu \
+ && rm -rf /opt/conda/include \
+ && rm -rf /opt/conda/pkgs/* /opt/conda/share/doc /opt/conda/share/man /opt/conda/share/info
 
 ENV PATH="/opt/conda/bin:$PATH"
 
