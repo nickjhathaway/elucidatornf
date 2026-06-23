@@ -53,7 +53,10 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Mi
 
 ENV PATH="/opt/conda/bin:$PATH"
 
-# All R packages in one layer — only what the etc/*.qmd reports require
+# All R packages in one layer
+# Ensure C++14 minimum for R package compilation (needed for newer RcppArmadillo with presto for some reason)
+RUN mkdir -p ~/.R && printf 'CXX11STD = -std=gnu++14\nCXX14STD = -std=gnu++14\n' > ~/.R/Makevars
+
 COPY install_packages.R /opt/install_packages.R
 RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
     echo "options(repos = c(CRAN = 'https://cran.rstudio.com/'), \
@@ -62,19 +65,40 @@ RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/ && \
     Rscript -e " \
       source('/opt/install_packages.R'); \
       install_cran(c( \
-        'remotes', 'readr', 'ggplot2', 'dplyr', 'tidyr', 'stringr', \
-        'DT', 'plotly', 'rmarkdown', 'knitr', 'Cairo' \
+        'remotes', 'tibble', 'dplyr', 'stringr', 'readr', 'ggplot2', 'tidyr', \
+        'data.table', 'openxlsx', 'rlang', 'magrittr', 'pegas', \
+        'ape', 'rmarkdown', 'knitr', 'kableExtra', 'DT', 'here', \
+        'ggrepel', 'ggthemes', 'ggdist', 'ggnewscale', 'plotly', \
+        'dendsort', 'tidymodels', 'rjson', 'cowplot', 'dbscan', 'naturalsort', 'Cairo', \
+        'fastmatch', 'colorRamps', 'paletteer', 'r2d3', 'shiny', 'skimr', 'moderndive', \
+        'formatR', 'markdown', 'bigmds', 'optparse', 'validate' \
       ), ncpus = ${CPU_COUNT})" && \
-    Rscript -e " \
+    Rscript -e "\
+        source('/opt/install_packages.R'); \
+        setRepositories(ind = 1:3);\
+        install_cran(c( \
+          'Signac' \
+        ), ncpus = ${CPU_COUNT})" && \
+    Rscript -e "\
+        source('/opt/install_packages.R'); \
+        setRepositories(ind = 1:3);\
+        install_cran(c( \
+          'Seurat' \
+        ), ncpus = ${CPU_COUNT})"
+    RUN Rscript -e " \
       if (!require('BiocManager', quietly=TRUE)) install.packages('BiocManager'); \
       BiocManager::install(version='3.23', ask=FALSE);" && \
+    Rscript -e " \
+      source('/opt/install_packages.R'); \
+      setRepositories(ind=1:3, addURLs=c('https://satijalab.r-universe.dev','https://bnprks.r-universe.dev/')); \
+      install_cran(c('BPCells','presto','glmGamPoi'), ncpus=${CPU_COUNT})" && \
     Rscript -e "\
       source('/opt/install_packages.R'); \
-      install_bioconductor(c('ComplexHeatmap'), version = '3.23')" && \
+      install_bioconductor(c('Biostrings', 'pwalign', 'ggtree', 'ComplexHeatmap', 'MAST', 'SingleCellExperiment', 'TOAST'), version = '3.23')" &&\
     Rscript -e " \
       source('/opt/install_packages.R'); \
       setRepositories(ind = 1:3);\
-      install_github(c('nickjhathaway/HaplotypeRainbows@develop'))" && \
+      install_github(c('nickjhathaway/HaplotypeRainbows@develop','hoesler/rwantshue','xuranw/MuSiC', 'humengying0907/InstaPrism'))" && \
     # Clean R build artifacts — often 200-400MB
     find /usr/local/lib/R -name "*.o" -delete && \
     find /usr/local/lib/R -name "*.a" -delete && \
