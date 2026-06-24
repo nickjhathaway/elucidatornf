@@ -161,7 +161,7 @@ Please correct the above issues and re-run.
 
     AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir)
 
-    fastq_input_ch = channel.fromPath(file("${input_fastq_dir}/*.fastq.gz"))
+    fastq_input_ch = channel.fromPath("${input_fastq_dir}/*.fastq.gz")
 
     input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
