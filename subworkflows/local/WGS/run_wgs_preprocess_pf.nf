@@ -6,7 +6,7 @@ nextflow.enable.dsl = 2
 include { FASTP_TRIM } from '../../../modules/local/run_fastp_pf_wgs'
 include { MAP_BWA as HOST1_FILT_MAP_BWA} from '../../../modules/local/map_bwa'
 include { MAP_BWA as HOST2_FILT_MAP_BWA} from '../../../modules/local/map_bwa'
-include { MAP_BWA as FINAL_MAP_BWA } from '../../../modules/local/map_bwa'
+include { MAP_BWA_MARKDUP as FINAL_MAP_BWA } from '../../../modules/local/map_bwa'
 include { MAP_MINIMAP2 as HOST1_FILT_MAP_MINIMAP2 } from '../../../modules/local/map_minimap2'
 include { MAP_MINIMAP2 as HOST2_FILT_MAP_MINIMAP2} from '../../../modules/local/map_minimap2'
 
@@ -298,7 +298,7 @@ workflow RUN_WGS_PREPROCESS_PF{
         tuple(sid, 'counts', total)
     }
 
-    final_flagstat_tagged = final_bam_out.map { sid, _bam, _bai, flagstat ->
+    final_flagstat_tagged = final_bam_out.map { sid, _bam, _bai, flagstat, _dupstats ->
         tuple(sid, 'flagstat', flagstat)
     }
 

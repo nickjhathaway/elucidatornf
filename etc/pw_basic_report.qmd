@@ -31,7 +31,7 @@ library(HaplotypeRainbows)
 ###BiocManager::install("ComplexHeatmap", ask = FALSE)
 ##github
 ###install.packages(c('remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
-###remotes::install_github('nickjhathaway/HaplotypeRainbows@develop')
+###remotes::install_github('nickjhathaway/HaplotypeRainbows@v2.0.0')
 
 create_dt <- function(x){
     DT::datatable(x,
@@ -182,15 +182,28 @@ allSelectedClustersInfo = readr::read_tsv("PathWeaverResults/reports/populationC
   left_join(targets_name_key %>%
               dplyr::rename(p_name = name))
 
-allSelectedClustersInfo_prep = HaplotypeRainbows::prepForRainbow(allSelectedClustersInfo, targetCol = new_target_name)
-if(nrow(allSelectedClustersInfo) > 1){
-  allSelectedClustersInfo_prep = HaplotypeRainbows::resort_prepped_samples_by_clustering(allSelectedClustersInfo_prep, targetCol = new_target_name)
+# HaplotypeRainbows v2.0.0: the package is now a single chainable R6 class.
+# The column mapping is supplied once to $new(); this data uses SeekDeep names
+# (the target column was renamed to new_target_name above).
+allSelectedClustersInfo_rb = HaplotypeRainbows::HaplotypeRainbow$new(
+  allSelectedClustersInfo,
+  sample_col    = "s_Sample",
+  target_col    = "new_target_name",
+  popuid_col    = "h_popUID",
+  rel_abund_col = "c_AveragedFrac"
+)
+allSelectedClustersInfo_rb$prep()
+if(n_distinct(allSelectedClustersInfo$s_Sample) > 1){
+  allSelectedClustersInfo_rb$sort_by_clustering()
 }
-allSelectedClustersInfo_plot = HaplotypeRainbows::genRainbowHapPlotObj(allSelectedClustersInfo_prep, targetCol = new_target_name) %>%
-  HaplotypeRainbows::add_haplotype_rainbow_axis_theming(allSelectedClustersInfo_prep, targetCol = new_target_name)
+allSelectedClustersInfo_plot = allSelectedClustersInfo_rb$plot()
 
-allSelectedClustersInfo_prep_fig_w <- max(6, n_distinct(allSelectedClustersInfo_prep$new_target_name) * cell_w)
-allSelectedClustersInfo_prep_fig_h <- max(6, n_distinct(allSelectedClustersInfo_prep$s_Sample) * cell_h)
+# count-driven figure sizing (width scales with targets, height with samples)
+allSelectedClustersInfo_prep_dims = allSelectedClustersInfo_rb$dims(
+  cell_width = cell_w, cell_height = cell_h
+)
+allSelectedClustersInfo_prep_fig_w = allSelectedClustersInfo_prep_dims$width
+allSelectedClustersInfo_prep_fig_h = allSelectedClustersInfo_prep_dims$height
 
 
 ```
