@@ -18,6 +18,8 @@ library(tidyr)
 library(DT)
 library(plotly)
 library(stringr)
+library(htmltools)
+library(base64enc)
 #bioconductor
 library(ComplexHeatmap)
 #github
@@ -25,14 +27,14 @@ library(HaplotypeRainbows)
 
 #install instructions if you don't have the packages above
 ##cran
-###install.packages(c('readr', 'ggplot2', 'dplyr', 'tidyr', 'DT', 'htmltools', 'plotly', 'remotes', 'stringr'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
+###install.packages(c('readr', 'ggplot2', 'dplyr', 'tidyr', 'DT', 'htmltools', 'plotly', 'remotes', 'stringr', 'base64enc'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
 ##bioconductor
 ###install.packages("BiocManager")
 ###BiocManager::install(ask = FALSE)
 ###BiocManager::install("ComplexHeatmap", ask = FALSE)
 ##github
 ###install.packages(c('remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
-###remotes::install_github('nickjhathaway/HaplotypeRainbows@v2.0.1')
+###remotes::install_github('nickjhathaway/HaplotypeRainbows@v2.0.2')
 ```
 
 ```{r}
@@ -63,6 +65,26 @@ is.notna <- function(x) {
 # tuning parameters
 cell_w <- 0.25   # inches per column
 cell_h <- 0.25   # inches per row
+
+# Render a plotting call to a PDF and return a self-contained "Download PDF"
+# button (the PDF is embedded as a base64 data URI so it survives
+# embed-resources: true -- no external files are written next to the report).
+# `expr` is evaluated lazily while the pdf device is open, so pass the plotting
+# call unquoted, e.g. pdf_download_button(print(p), "p.pdf", 8, 6, "My plot").
+pdf_download_button <- function(expr, filename, width, height, label = filename){
+  tmp <- tempfile(fileext = ".pdf")
+  grDevices::pdf(tmp, width = width, height = height)
+  tryCatch(force(expr), finally = grDevices::dev.off())
+  uri <- paste0("data:application/pdf;base64,", base64enc::base64encode(tmp))
+  unlink(tmp)
+  htmltools::tags$a(
+    href = uri,
+    download = filename,
+    class = "btn btn-primary btn-sm",
+    style = "margin: 4px;",
+    htmltools::HTML(paste0("&#11015; ", label, " (PDF)"))
+  )
+}
 
 ```
 
@@ -129,6 +151,10 @@ allExtractionProfile_sp_mat_n_cols <- ncol(allExtractionProfile_sp_mat)
 allExtractionProfile_sp_mat_fig_w <- max(6, allExtractionProfile_sp_mat_n_cols * cell_w)
 allExtractionProfile_sp_mat_fig_h <- max(6, allExtractionProfile_sp_mat_n_rows * cell_h)
 
+# the heatmap also carries a row dendrogram + row labels + legend, so give it
+# extra width headroom beyond the raw column count
+allExtractionProfile_sp_mat_hm_fig_w <- max(10, allExtractionProfile_sp_mat_n_cols * 0.5 + 4)
+
 ```
 
 ```{r}
@@ -148,7 +174,7 @@ allSelectedClustersInfo_rb = HaplotypeRainbows::HaplotypeRainbow$new(
 )
 allSelectedClustersInfo_rb$prep()
 if(n_distinct(allSelectedClustersInfo$s_Sample) > 1){
-  allSelectedClustersInfo_rb$sort_by_clustering()
+  allSelectedClustersInfo_rb$sort_samples_by_clustering()
 }
 allSelectedClustersInfo_plot = allSelectedClustersInfo_rb$plot()
 
@@ -266,7 +292,7 @@ ggplotly(ggplot(allExtractionProfile_extracted_passed_gat) +
 
 ```{r}
 #| title: Extraction target raw counts
-#| fig-width: !expr allExtractionProfile_sp_mat_fig_w
+#| fig-width: !expr allExtractionProfile_sp_mat_hm_fig_w
 #| fig-height: !expr allExtractionProfile_sp_mat_fig_h
 
 allExtractionProfile_sp_mat_hp = Heatmap(allExtractionProfile_sp_mat, name = "reads(log10)")
@@ -286,6 +312,27 @@ draw(allExtractionProfile_sp_mat_hp,
 #| fig-height: !expr allSelectedClustersInfo_prep_fig_h
 
 print(allSelectedClustersInfo_plot)
+```
+
+```{r}
+#| title: Download plots (PDF)
+
+# Vector (PDF) exports of the extraction-coverage heatmap and rainbow plot,
+# rendered at the same dimensions as their on-screen figures.
+htmltools::tagList(
+  pdf_download_button(
+    draw(allExtractionProfile_sp_mat_hp, padding = unit(c(35,5,5,5), "mm")),
+    "extraction_target_raw_counts.pdf",
+    allExtractionProfile_sp_mat_hm_fig_w, allExtractionProfile_sp_mat_fig_h,
+    "Extraction target raw counts"
+  ),
+  pdf_download_button(
+    print(allSelectedClustersInfo_plot),
+    "haplotype_rainbow.pdf",
+    allSelectedClustersInfo_prep_fig_w, allSelectedClustersInfo_prep_fig_h,
+    "Haplotype Rainbow"
+  )
+)
 ```
 
 ```{r}

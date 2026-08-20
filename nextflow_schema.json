@@ -545,6 +545,11 @@
         },
         "wgs_final_genome_fasta_fnp": {
             "type": "string"
+        },
+        "wgs_depletion_save_unpaired": {
+            "type": "boolean",
+            "default": false,
+            "description": "keep the singletons discarded during host depletion, written to <outdir>/discarded_singletons/"
         }
     },
     "required": ["genome_fnp"]

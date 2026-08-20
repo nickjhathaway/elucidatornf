@@ -13,7 +13,7 @@
 #   * sudo cp completions/elucidatornf.bash /etc/bash_completion.d/elucidatornf
 
 _ELU_NXF='-profile -resume -params-file -c -config -w -work-dir -with-report -with-trace -with-timeline -with-dag -ansi-log -bg -name -stub-run -dump-channels -preview'
-_ELU_COMMON='--outdir --publish_dir_mode --max_task_cpus --max_task_memory --max_task_time --max_executor_cpus --max_executor_memory --max_retry --max_cpus --max_time'
+_ELU_COMMON='--outdir --publish_dir_mode --max_task_cpus --max_task_memory --max_task_time --max_executor_cpus --max_executor_memory --max_retry --max_cpus --max_time --container_image'
 _ELU_VARIANT='--do_variant_calling --variant_calling_ncpus --known_amino_acid_changes_fnp --vc_variant_frequency_cut_off --vc_variant_occurrence_cut_off --vc_no_pairwise_comps --vc_primary_genome --vc_correct_small_homopolymer_errors --meta_fields_to_calc_pop_diffs --vc_extra_args --meta_fnp'
 _ELU_AMPLICON='--primers_fnp --genome_dir --gff_dir --nanopore_primers_errors_allowed --nanopore_rename_key_fnp --nanopore_render_clustering_report --amplicon_clustering_pop_clustering_extra_args --amplicon_clustering_test_number --amplicon_clustering_number_of_files_to_investigate'
 _ELU_WGS_COMMON='--wgs_samples_keep_file --wgs_rename_tsv --wgs_skip_existing --wgs_host_filter_any_mate --wgs_host_filter_filter_with_unmapped_mate --wgs_host_filter_min_mapq'
@@ -22,6 +22,7 @@ _ELU_NANOPORE='--nanopore_clustering_min_len --nanopore_clustering_min_sample_re
 _ELU_PATHWEAVER='--pw_ncpus --pw_pop_clustering_ncpus --pw_seqs_table --pw_seqs_table_seqs_col --pw_seqs_table_name_col --pw_seqs_table_target_col --pw_gene_ids --pw_samples_file --pw_bed_fnp --pw_extract_region_assemblies_extra_args --genome_fnp --bams_dir --bams_file_ending --render_pw_report --pw_pop_clustering_extra_args --pw_overwrite_dir --run_sub_segments_determination --sub_segments_correction_occurence_cut_off --sub_segments_low_freq_cut_off --sub_segments_uniqueHapCountCutOff --sub_segments_extra_args --primers_fnp'
 _ELU_RNASEQ='--rnaseq_host1_filter_genome_fasta_fnp --rnaseq_host1_filter_contigs_fnp --rnaseq_host2_filter_genome_fasta_fnp --rnaseq_host2_filter_contigs_fnp --rnaseq_salmon_index --single_cell_seurat_r_object_fnp'
 _ELU_WGS='--wgs_host1_filter_genome_fasta_fnp --wgs_host1_filter_contigs_fnp --wgs_host2_filter_genome_fasta_fnp --wgs_host2_filter_contigs_fnp --wgs_final_genome_fasta_fnp'
+_ELU_WGS_DEPLETION='--wgs_depletion_save_unpaired'
 
 # file/dir completion that works with or without the bash-completion package
 _elu_filedir() {
@@ -59,6 +60,7 @@ _elucidatornf_complete() {
             nanopore_clustering.nf)        wf=nanopore ;;
             pathweaver_extract_regions.nf) wf=pathweaver ;;
             wgs_preprocess_pf.nf)          wf=wgs ;;
+            wgs_host_depletion_pf.nf)      wf=wgs_depletion ;;
             rnaseq_process_pf.nf)          wf=rnaseq ;;
             index_genomes.nf)              wf=index ;;
         esac
@@ -86,6 +88,7 @@ _elucidatornf_complete() {
         nanopore)   flags="$_ELU_COMMON --input_fastq_dir $_ELU_VARIANT $_ELU_AMPLICON $_ELU_NANOPORE $_ELU_NXF" ;;
         pathweaver) flags="$_ELU_COMMON $_ELU_VARIANT $_ELU_PATHWEAVER $_ELU_NXF" ;;
         wgs)        flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_NXF" ;;
+        wgs_depletion) flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_WGS_DEPLETION $_ELU_NXF" ;;
         rnaseq)     flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_RNASEQ $_ELU_NXF" ;;
         index)      flags="$_ELU_COMMON --genome_dir $_ELU_NXF" ;;
         *)          flags="$_ELU_NXF" ;;

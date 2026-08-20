@@ -19,6 +19,7 @@ need directly. `main.nf` is only a helper that lists the available workflows
 | `nanopore_clustering.nf` | Nanopore amplicon clustering (SeekDeep) |
 | `pathweaver_extract_regions.nf` | PathWeaver targeted region extraction + population clustering |
 | `wgs_preprocess_pf.nf` | WGS read preprocessing / host filtering (*P. falciparum*) |
+| `wgs_host_depletion_pf.nf` | Host read removal only, for submitting otherwise-raw reads |
 | `rnaseq_process_pf.nf` | RNA-seq processing + deconvolution (*P. falciparum*) |
 | `index_genomes.nf` | Build indexes for a directory of genomes |
 
@@ -151,6 +152,46 @@ nextflow run elucidatornf/wgs_preprocess_pf.nf \
       --wgs_host2_filter_contigs_fnp anopheles_contigs.txt \
       --wgs_final_genome_fasta_fnp Pf3D7.fasta \
       --outdir wgs_preprocessed \
+      -profile <docker/singularity/apptainer/.../institute>
+```
+
+### Host read removal only — `wgs_host_depletion_pf.nf`
+
+The host-filter core of `wgs_preprocess_pf.nf` with **no fastp trimming and no final
+mapping**, for submitting data that should be raw apart from having host reads stripped.
+Reads that survive come back off the bams in their original orientation, so they are
+byte identical (name, sequence, quality) to the input reads. Any read whose mate was
+filtered off is discarded so the output stays strictly paired end.
+
+**Required:** `--input_fastq_dir`, `--outdir`, `--wgs_host1_filter_genome_fasta_fnp`,
+`--wgs_host1_filter_contigs_fnp`, `--wgs_host2_filter_genome_fasta_fnp`,
+`--wgs_host2_filter_contigs_fnp`.
+
+**Key options:** shares `--wgs_samples_keep_file`, `--wgs_rename_tsv`,
+`--wgs_skip_existing` and the host-filter options in
+[`conf/params/wgs_common.config`](conf/params/wgs_common.config), plus
+`--wgs_depletion_save_unpaired` (default `false`) to keep the discarded singletons.
+
+Outputs, under `--outdir`:
+
+| Path | Contents |
+| --- | --- |
+| `host_depleted_fastqs/<sample>_R{1,2}.fastq.gz` | the reads to submit |
+| `host_filter_info/host_depletion_summary.tsv.gz` | per sample: input reads, reads filtered off per host, singletons discarded, reads remaining |
+| `host_filter_info/<sample>_filteredByChrom.tsv.gz` | which host contigs the filtered reads went to |
+| `host_filter_info/<sample>_totalReadCounts.tsv.gz` | raw counts per filter pass |
+| `host_filter_info/sample_name_key.tsv` | old → new sample name key from `--wgs_rename_tsv` |
+| `discarded_singletons/<sample>_unpaired.fastq.gz` | only with `--wgs_depletion_save_unpaired` |
+
+```bash
+nextflow run elucidatornf/wgs_host_depletion_pf.nf \
+      --input_fastq_dir fastq/ \
+      --wgs_host1_filter_genome_fasta_fnp human.fasta \
+      --wgs_host1_filter_contigs_fnp human_contigs.txt \
+      --wgs_host2_filter_genome_fasta_fnp anopheles.fasta \
+      --wgs_host2_filter_contigs_fnp anopheles_contigs.txt \
+      --wgs_rename_tsv rename_key.tsv \
+      --outdir wgs_host_depleted \
       -profile <docker/singularity/apptainer/.../institute>
 ```
 

@@ -17,6 +17,9 @@ library(dplyr)
 library(tidyr)
 library(DT)
 library(plotly)
+library(stringr)
+library(htmltools)
+library(base64enc)
 #bioconductor
 library(ComplexHeatmap)
 #github
@@ -24,14 +27,14 @@ library(HaplotypeRainbows)
 
 #install instructions if you don't have the packages above
 ##cran
-###install.packages(c('readr', 'ggplot2', 'dplyr', 'tidyr', 'DT', 'plotly', 'remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
+###install.packages(c('readr', 'ggplot2', 'dplyr', 'tidyr', 'DT', 'plotly', 'remotes', 'stringr', 'htmltools', 'base64enc'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
 ##bioconductor
 ###install.packages("BiocManager")
 ###BiocManager::install(ask = FALSE)
 ###BiocManager::install("ComplexHeatmap", ask = FALSE)
 ##github
 ###install.packages(c('remotes'), Ncpus = 5, repos = 'http://cran.us.r-project.org')
-###remotes::install_github('nickjhathaway/HaplotypeRainbows@v2.0.1')
+###remotes::install_github('nickjhathaway/HaplotypeRainbows@v2.0.2')
 
 create_dt <- function(x){
     DT::datatable(x,
@@ -60,6 +63,26 @@ is.notna <- function(x) {
 # tuning parameters
 cell_w <- 0.25   # inches per column
 cell_h <- 0.25   # inches per row
+
+# Render a plotting call to a PDF and return a self-contained "Download PDF"
+# button (the PDF is embedded as a base64 data URI so it survives
+# embed-resources: true -- no external files are written next to the report).
+# `expr` is evaluated lazily while the pdf device is open, so pass the plotting
+# call unquoted, e.g. pdf_download_button(print(p), "p.pdf", 8, 6, "My plot").
+pdf_download_button <- function(expr, filename, width, height, label = filename){
+  tmp <- tempfile(fileext = ".pdf")
+  grDevices::pdf(tmp, width = width, height = height)
+  tryCatch(force(expr), finally = grDevices::dev.off())
+  uri <- paste0("data:application/pdf;base64,", base64enc::base64encode(tmp))
+  unlink(tmp)
+  htmltools::tags$a(
+    href = uri,
+    download = filename,
+    class = "btn btn-primary btn-sm",
+    style = "margin: 4px;",
+    htmltools::HTML(paste0("&#11015; ", label, " (PDF)"))
+  )
+}
 
 ```
 
@@ -159,7 +182,10 @@ allBasicInfo_logRawCov_sp_mat_hp = Heatmap(
     column_dend_height  = unit(2, "cm")
 )
 
-coverage_fig_w <- max(6, ncol(allBasicInfo_logRawCov_sp_mat) * cell_w)
+# coverage heatmaps also carry a row dendrogram (4 cm) + row labels + legend,
+# so widen the per-column size and add headroom beyond the raw column count
+cov_cell_w <- 0.5
+coverage_fig_w <- max(10, ncol(allBasicInfo_logRawCov_sp_mat) * cov_cell_w + 4)
 coverage_fig_h <- max(6, nrow(allBasicInfo_logRawCov_sp_mat) * cell_h * 1.5)
 
 
@@ -194,7 +220,7 @@ allSelectedClustersInfo_rb = HaplotypeRainbows::HaplotypeRainbow$new(
 )
 allSelectedClustersInfo_rb$prep()
 if(n_distinct(allSelectedClustersInfo$s_Sample) > 1){
-  allSelectedClustersInfo_rb$sort_by_clustering()
+  allSelectedClustersInfo_rb$sort_samples_by_clustering()
 }
 allSelectedClustersInfo_plot = allSelectedClustersInfo_rb$plot()
 
@@ -327,9 +353,127 @@ print(allSelectedClustersInfo_plot)
 ```
 
 ```{r}
+#| title: Download plots (PDF)
+
+# Vector (PDF) exports of the coverage heatmaps and rainbow plot, rendered at
+# the same dimensions as their on-screen figures.
+htmltools::tagList(
+  pdf_download_button(
+    draw(allBasicInfo_sp_mat_hp, background = "transparent", merge_legend = TRUE,
+         padding = unit(c(40, 2, 2, 2), "mm")),
+    "norm_coverage.pdf", coverage_fig_w, coverage_fig_h, "Norm Coverage"
+  ),
+  pdf_download_button(
+    draw(allBasicInfo_logRawCov_sp_mat_hp, background = "transparent", merge_legend = TRUE,
+         padding = unit(c(40, 2, 2, 2), "mm")),
+    "log10_coverage.pdf", coverage_fig_w, coverage_fig_h, "Log10 Coverage"
+  ),
+  pdf_download_button(
+    print(allSelectedClustersInfo_plot),
+    "haplotype_rainbow.pdf", allSelectedClustersInfo_prep_fig_w, allSelectedClustersInfo_prep_fig_h,
+    "Haplotype Rainbow"
+  )
+)
+```
+
+```{r}
 #| title: Naive COI estimates
 
 create_dt(allSelectedClustersInfo_filt_coi_sum_filt_COI)
+```
+
+```{r}
+#| title: Known mutations within sample info table
+
+if(file.exists("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted = AAChangesInfo %>%
+    filter(Targeted == "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(-Gene_Transcript_ID, -ExonicFunc, -Mutation_Name, -CoveredBy, -Targeted)
+  create_dt(AAChangesInfo_targeted)
+}
+```
+
+```{r}
+#| title: Known mutations frequency and prevalence table
+
+AAChangesInfo_targeted_population_fig_w = 10
+if(file.exists("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted_population = AAChangesInfo %>%
+    filter(Targeted == "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
+    unique()
+  AAChangesInfo_targeted_population_fig_w = n_distinct(paste0(AAChangesInfo_targeted_population$Gene_ID, "-", AAChangesInfo_targeted_population$reference_AA_pos))
+  create_dt(AAChangesInfo_targeted_population)
+}
+```
+
+```{r}
+#| title: Known mutations prevalence plot
+#| fig-width: !expr AAChangesInfo_targeted_population_fig_w
+
+if(file.exists("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted= AAChangesInfo %>%
+    filter(Targeted == "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    group_by(Gene, Gene_ID, reference_AA_pos, sample) %>%
+    mutate(genotype = case_when(
+      all(!is_reference) ~ "alt",
+      all(is_reference) ~ "ref",
+      T ~ "mixed"
+    ))
+  AAChangesInfo_targeted_population_genotype_count = AAChangesInfo_targeted %>%
+    group_by(Gene, Gene_ID, reference_AA_pos) %>%
+    mutate(position_sample_total = n_distinct(sample)) %>%
+    group_by(Gene, Gene_ID, reference_AA_pos, position_sample_total, genotype) %>%
+    summarise(sample_count = n_distinct(sample)) %>%
+    mutate(sample_prev = sample_count/position_sample_total) %>%
+    group_by(Gene, Gene_ID) %>%
+    mutate(Identifier = paste0(Gene, "-", Gene_ID, "-", stringr::str_pad(reference_AA_pos, max(nchar(reference_AA_pos))))) %>%
+    ungroup()
+
+  ggplotly(ggplot(AAChangesInfo_targeted_population_genotype_count) +
+    geom_col(aes(x = Identifier, y = sample_prev, fill = genotype, sample_count = sample_count), color = "black") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+    scale_fill_manual(values = colorPalette_08))
+}
+```
+
+```{r}
+#| title: Novel mutations within sample info table
+
+if(file.exists("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted = AAChangesInfo %>%
+    filter(Targeted != "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(-Gene_Transcript_ID, -ExonicFunc, -Mutation_Name, -CoveredBy, -Targeted)
+  create_dt(AAChangesInfo_targeted)
+}
+```
+
+```{r}
+#| title: Novel mutations frequency and prevalence table
+
+if(file.exists("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")){
+  AAChangesInfo = readr::read_tsv("PathWeaverResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
+
+  AAChangesInfo_targeted_population = AAChangesInfo %>%
+    filter(Targeted != "Yes") %>%
+    filter(AA_cnt > 0) %>%
+    select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
+    unique()
+  create_dt(AAChangesInfo_targeted_population)
+}
 ```
 
 

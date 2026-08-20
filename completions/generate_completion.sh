@@ -25,6 +25,7 @@ NANOPORE=$(extract nanopore)
 PATHWEAVER="$(extract pathweaver) --primers_fnp"
 RNASEQ=$(extract rnaseq)
 WGS=$(extract wgs)
+WGS_DEPLETION=$(extract wgs_host_depletion)
 
 {
 cat <<'HEADER'
@@ -54,6 +55,7 @@ echo "_ELU_NANOPORE='${NANOPORE}'"
 echo "_ELU_PATHWEAVER='${PATHWEAVER}'"
 echo "_ELU_RNASEQ='${RNASEQ}'"
 echo "_ELU_WGS='${WGS}'"
+echo "_ELU_WGS_DEPLETION='${WGS_DEPLETION}'"
 
 cat <<'BODY'
 
@@ -93,6 +95,7 @@ _elucidatornf_complete() {
             nanopore_clustering.nf)        wf=nanopore ;;
             pathweaver_extract_regions.nf) wf=pathweaver ;;
             wgs_preprocess_pf.nf)          wf=wgs ;;
+            wgs_host_depletion_pf.nf)      wf=wgs_depletion ;;
             rnaseq_process_pf.nf)          wf=rnaseq ;;
             index_genomes.nf)              wf=index ;;
         esac
@@ -120,6 +123,7 @@ _elucidatornf_complete() {
         nanopore)   flags="$_ELU_COMMON --input_fastq_dir $_ELU_VARIANT $_ELU_AMPLICON $_ELU_NANOPORE $_ELU_NXF" ;;
         pathweaver) flags="$_ELU_COMMON $_ELU_VARIANT $_ELU_PATHWEAVER $_ELU_NXF" ;;
         wgs)        flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_NXF" ;;
+        wgs_depletion) flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_WGS_DEPLETION $_ELU_NXF" ;;
         rnaseq)     flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_RNASEQ $_ELU_NXF" ;;
         index)      flags="$_ELU_COMMON --genome_dir $_ELU_NXF" ;;
         *)          flags="$_ELU_NXF" ;;
