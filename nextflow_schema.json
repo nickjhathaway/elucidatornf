@@ -527,6 +527,11 @@
             "type": "string",
             "description": "the index for salmon quant"
         },
+        "rnaseq_skip_existing": {
+            "type": "boolean",
+            "default": true,
+            "description": "skip samples whose outputs are already in --outdir (summary, quants and k-mer counts); the combined tables, deconvolution and run summary still cover every sample"
+        },
         "salmon_max_forks": {
             "type": "integer",
             "default": 1,

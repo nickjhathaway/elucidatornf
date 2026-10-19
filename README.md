@@ -203,10 +203,11 @@ nextflow run elucidatornf/wgs_host_depletion_pf.nf \
 `--single_cell_seurat_r_object_fnp`, `--rnaseq_kmer_filter_table_fnp`,
 `--rnaseq_kmer_sort_table_fnp`.
 
-**Key options:** shares `--wgs_samples_keep_file`, `--wgs_rename_tsv`,
-`--wgs_skip_existing` and the host-filter options in
-[`conf/params/wgs_common.config`](conf/params/wgs_common.config); the k-mer, summary and
-`--salmon_max_forks` options are in [`conf/params/rnaseq.config`](conf/params/rnaseq.config).
+**Key options:** `--rnaseq_skip_existing` (default `true`) skips samples already processed
+into `--outdir`; the k-mer, summary and `--salmon_max_forks` options are in
+[`conf/params/rnaseq.config`](conf/params/rnaseq.config). Shares `--wgs_samples_keep_file`,
+`--wgs_rename_tsv` and the host-filter options in
+[`conf/params/wgs_common.config`](conf/params/wgs_common.config).
 
 Each run writes a `README.md` into `--outdir` describing every results directory and the
 summary columns (template: [`assets/rnaseq_results_README.md`](assets/rnaseq_results_README.md)).

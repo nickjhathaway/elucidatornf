@@ -32,7 +32,7 @@ through every step, QC, and Salmon mapping rates.
 
 Rerunning into this directory skips every sample whose outputs are already here, and rebuilds the
 combined tables, the deconvolution and the summary over all samples. After changing a reference or
-a setting, use a new `--outdir` or pass `--wgs_skip_existing false`, so old and new results aren't mixed.
+a setting, use a new `--outdir` or pass `--rnaseq_skip_existing false`, so old and new results aren't mixed.
 
 ## References used in the latest run
 

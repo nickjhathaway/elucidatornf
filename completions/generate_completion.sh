@@ -124,7 +124,7 @@ _elucidatornf_complete() {
         pathweaver) flags="$_ELU_COMMON $_ELU_VARIANT $_ELU_PATHWEAVER $_ELU_NXF" ;;
         wgs)        flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_NXF" ;;
         wgs_depletion) flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_WGS_DEPLETION $_ELU_NXF" ;;
-        rnaseq)     flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_RNASEQ $_ELU_NXF" ;;
+        rnaseq)     flags="$_ELU_COMMON --input_fastq_dir ${_ELU_WGS_COMMON/--wgs_skip_existing/} $_ELU_RNASEQ $_ELU_NXF" ;;
         index)      flags="$_ELU_COMMON --genome_dir $_ELU_NXF" ;;
         *)          flags="$_ELU_NXF" ;;
     esac

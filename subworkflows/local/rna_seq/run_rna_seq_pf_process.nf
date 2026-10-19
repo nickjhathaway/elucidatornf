@@ -106,7 +106,7 @@ workflow RUN_RNASEQ_PROCESS_PF{
     human_removed_fastqs_dir.mkdirs()
 
     // CLI params arrive as strings, so a plain truthiness test would treat "false" as on
-    def skip_existing = params.wgs_skip_existing.toString().toBoolean()
+    def skip_existing = params.rnaseq_skip_existing.toString().toBoolean()
 
     samples_ch = channel
         .fromFilePairs(

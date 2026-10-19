@@ -13,14 +13,14 @@
 #   * sudo cp completions/elucidatornf.bash /etc/bash_completion.d/elucidatornf
 
 _ELU_NXF='-profile -resume -params-file -c -config -w -work-dir -with-report -with-trace -with-timeline -with-dag -ansi-log -bg -name -stub-run -dump-channels -preview'
-_ELU_COMMON='--outdir --publish_dir_mode --max_task_cpus --max_task_memory --max_task_time --max_executor_cpus --max_executor_memory --max_retry --max_cpus --max_time --container_image'
+_ELU_COMMON='--outdir --publish_dir_mode --max_task_cpus --max_task_memory --max_task_time --max_executor_cpus --max_executor_memory --max_retry --align_max_forks --scratch_dir --max_cpus --max_time --container_image --elucidatornf_container_image'
 _ELU_VARIANT='--do_variant_calling --variant_calling_ncpus --known_amino_acid_changes_fnp --vc_variant_frequency_cut_off --vc_variant_occurrence_cut_off --vc_no_pairwise_comps --vc_primary_genome --vc_correct_small_homopolymer_errors --meta_fields_to_calc_pop_diffs --vc_extra_args --meta_fnp'
 _ELU_AMPLICON='--primers_fnp --genome_dir --gff_dir --nanopore_primers_errors_allowed --nanopore_rename_key_fnp --nanopore_render_clustering_report --amplicon_clustering_pop_clustering_extra_args --amplicon_clustering_test_number --amplicon_clustering_number_of_files_to_investigate'
 _ELU_WGS_COMMON='--wgs_samples_keep_file --wgs_rename_tsv --wgs_skip_existing --wgs_host_filter_any_mate --wgs_host_filter_filter_with_unmapped_mate --wgs_host_filter_min_mapq'
 _ELU_ILLUMINA='--illumina_clustering_paired_end_length --illumina_clustering_error_profile --illumina_clustering_min_sample_read_count --illumina_clustering_population_ncpus --illumina_clustering_trim_front --illumina_clustering_trim_back'
 _ELU_NANOPORE='--nanopore_clustering_min_len --nanopore_clustering_min_sample_read_count --nanopore_clustering_ncpus --nanopore_clustering_trim_front --nanopore_clustering_trim_back --nanopore_clustering_max_reads_use --nanopore_extractor_use_inner_primers --nanopore_clustering_lower_base --nanopore_extractor_primer_within_start'
 _ELU_PATHWEAVER='--pw_ncpus --pw_pop_clustering_ncpus --pw_seqs_table --pw_seqs_table_seqs_col --pw_seqs_table_name_col --pw_seqs_table_target_col --pw_gene_ids --pw_samples_file --pw_bed_fnp --pw_extract_region_assemblies_extra_args --genome_fnp --bams_dir --bams_file_ending --render_pw_report --pw_pop_clustering_extra_args --pw_overwrite_dir --run_sub_segments_determination --sub_segments_correction_occurence_cut_off --sub_segments_low_freq_cut_off --sub_segments_uniqueHapCountCutOff --sub_segments_extra_args --primers_fnp'
-_ELU_RNASEQ='--rnaseq_host1_filter_genome_fasta_fnp --rnaseq_host1_filter_contigs_fnp --rnaseq_host2_filter_genome_fasta_fnp --rnaseq_host2_filter_contigs_fnp --rnaseq_salmon_index --single_cell_seurat_r_object_fnp'
+_ELU_RNASEQ='--rnaseq_host1_filter_genome_fasta_fnp --rnaseq_host1_filter_contigs_fnp --rnaseq_host2_filter_genome_fasta_fnp --rnaseq_host2_filter_contigs_fnp --rnaseq_salmon_index --rnaseq_skip_existing --single_cell_seurat_r_object_fnp --salmon_max_forks --rnaseq_kmer_filter_table_fnp --rnaseq_kmer_filter_kept_sets --rnaseq_kmer_filter_extra_args --rnaseq_kmer_sort_table_fnp --rnaseq_kmer_sort_exclude_sets --rnaseq_kmer_sort_frequency_correction --rnaseq_kmer_sort_frequency_max_candidate_depth --rnaseq_kmer_sort_extra_args --rnaseq_summary_pf_sets --rnaseq_summary_gene_sets'
 _ELU_WGS='--wgs_host1_filter_genome_fasta_fnp --wgs_host1_filter_contigs_fnp --wgs_host2_filter_genome_fasta_fnp --wgs_host2_filter_contigs_fnp --wgs_final_genome_fasta_fnp'
 _ELU_WGS_DEPLETION='--wgs_depletion_save_unpaired'
 
@@ -89,7 +89,7 @@ _elucidatornf_complete() {
         pathweaver) flags="$_ELU_COMMON $_ELU_VARIANT $_ELU_PATHWEAVER $_ELU_NXF" ;;
         wgs)        flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_NXF" ;;
         wgs_depletion) flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_WGS_DEPLETION $_ELU_NXF" ;;
-        rnaseq)     flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_RNASEQ $_ELU_NXF" ;;
+        rnaseq)     flags="$_ELU_COMMON --input_fastq_dir ${_ELU_WGS_COMMON/--wgs_skip_existing/} $_ELU_RNASEQ $_ELU_NXF" ;;
         index)      flags="$_ELU_COMMON --genome_dir $_ELU_NXF" ;;
         *)          flags="$_ELU_NXF" ;;
     esac
