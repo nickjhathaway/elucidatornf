@@ -73,7 +73,14 @@ cell_h <- 0.25   # inches per row
 # call unquoted, e.g. pdf_download_button(print(p), "p.pdf", 8, 6, "My plot").
 pdf_download_button <- function(expr, filename, width, height, label = filename){
   tmp <- tempfile(fileext = ".pdf")
-  grDevices::pdf(tmp, width = width, height = height)
+  # Prefer cairo_pdf: base pdf() writes ASCII "-" as a minus sign (U+2212), so
+  # names copied out of the PDF won't grep-match plain text. No pdf() encoding
+  # option avoids that, so fall back to it only when cairo is unavailable.
+  if (isTRUE(capabilities("cairo"))) {
+    grDevices::cairo_pdf(tmp, width = width, height = height)
+  } else {
+    grDevices::pdf(tmp, width = width, height = height)
+  }
   tryCatch(force(expr), finally = grDevices::dev.off())
   uri <- paste0("data:application/pdf;base64,", base64enc::base64encode(tmp))
   unlink(tmp)
