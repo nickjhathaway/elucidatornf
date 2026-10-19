@@ -23,4 +23,9 @@ process MAP_MINIMAP2 {
 
     samtools index ${sample_id}.sorted.bam
     """
+
+    stub:
+    """
+    touch ${sample_id}.sorted.bam ${sample_id}.sorted.bam.bai
+    """
 }

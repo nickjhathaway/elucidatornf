@@ -527,9 +527,62 @@
             "type": "string",
             "description": "the index for salmon quant"
         },
+        "salmon_max_forks": {
+            "type": "integer",
+            "default": 1,
+            "description": "maximum concurrent salmon quant tasks; salmon's memory use is much larger than its declared allocation, so concurrency is capped by count"
+        },
         "single_cell_seurat_r_object_fnp": {
             "type": "string",
             "description": "the single cell object Rds file which defines the cell deconvolution"
+        },
+        "rnaseq_kmer_filter_table_fnp": {
+            "type": "string",
+            "format": "file-path",
+            "description": "k-mer set table (set<TAB>kmer) for the first k-mer pass, which removes reads of unwanted sets such as mycoplasma and Pf rRNA, e.g. pfrRNA_restOfGenomeAndMycoplasma.tsv.gz"
+        },
+        "rnaseq_kmer_filter_kept_sets": {
+            "type": "string",
+            "default": "genomeRest",
+            "description": "comma-separated sets of the filter table whose reads are kept, alongside the reads that match no set"
+        },
+        "rnaseq_kmer_filter_extra_args": {
+            "type": "string",
+            "description": "extra arguments for extractByCountingUniqKmersFromSets in the filter pass"
+        },
+        "rnaseq_kmer_sort_table_fnp": {
+            "type": "string",
+            "format": "file-path",
+            "description": "k-mer set table (set<TAB>kmer) the filtered reads are sorted into, e.g. multicopyGenesFullGenesOfInterestplusrRNAAndRestGenomeAndMycoplasma.tsv.gz"
+        },
+        "rnaseq_kmer_sort_exclude_sets": {
+            "type": "string",
+            "default": "genomeRest,mycoplasma,pfrRNA",
+            "description": "comma-separated sets of the sort table that reads are not sorted into and that are not written out"
+        },
+        "rnaseq_kmer_sort_frequency_correction": {
+            "type": "boolean",
+            "default": true,
+            "description": "correct reads in the sort pass by k-mer frequency rather than strand, since stranded RNA-seq confounds strand with mate"
+        },
+        "rnaseq_kmer_sort_frequency_max_candidate_depth": {
+            "type": "integer",
+            "default": 3,
+            "description": "largest k-mer depth eligible for frequency correction (0 removes the cap); keeps real repeat-copy variation in tandem-repeat genes"
+        },
+        "rnaseq_kmer_sort_extra_args": {
+            "type": "string",
+            "description": "extra arguments for extractByCountingUniqKmersFromSets in the sort pass"
+        },
+        "rnaseq_summary_pf_sets": {
+            "type": "string",
+            "default": "genomeRest,pfrRNA",
+            "description": "comma-separated sets of the k-mer filter table counted as Pf reads in the run summary"
+        },
+        "rnaseq_summary_gene_sets": {
+            "type": "string",
+            "default": "vars,rifins,stevors,surfins",
+            "description": "comma-separated sets of the k-mer sort table given their own read-count column in the run summary"
         },
         "wgs_host1_filter_genome_fasta_fnp": {
             "type": "string",

@@ -19,5 +19,11 @@ process SALMON_QUANT_COMBINE {
         --overWrite \
         --out all_quants.tsv.gz
     """
+
+    stub:
+    // the staged quant files, so a -stub run shows which samples were combined
+    """
+    ls *_salmon_quants_quant.sf.gz | gzip > all_quants.tsv.gz
+    """
 }
 

@@ -24,4 +24,9 @@ process RUN_INSTAPRISM_DECONVOLUTION_PF {
             --use_top_diff \
             --top_diff_gene_amount 200
     """
+
+    stub:
+    """
+    touch pf_instaprism_fine_cell_proportions.tsv pf_instaprism_course_cell_proportions.tsv
+    """
 }

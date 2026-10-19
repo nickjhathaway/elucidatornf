@@ -58,4 +58,10 @@ process BAM_FILTER_BY_CHROMS {
     touch_empty_gz "${sample_id}_${filter_name}_unmapped_R1.fastq.gz"
     touch_empty_gz "${sample_id}_${filter_name}_unmapped_R2.fastq.gz"
     """
+
+    stub:
+    """
+    for f in kept_R1 kept_R2 unmapped_R1 unmapped_R2; do echo | gzip > ${sample_id}_${filter_name}_\${f}.fastq.gz; done
+    touch ${sample_id}_${filter_name}_filteredByChrom.tab.txt ${sample_id}_${filter_name}_totalReadCounts.tab.txt
+    """
 }

@@ -24,6 +24,12 @@ process COMBINE_KEPT_FILTERED_FASTQS{
     cat ${kept_host1_minimap2_r1} ${kept_host1_bwa_r1} ${kept_host2_minimap2_r1} ${kept_host2_bwa_r1} > ${sample_id}_kept_R1.fastq.gz
     cat ${kept_host1_minimap2_r2} ${kept_host1_bwa_r2} ${kept_host2_minimap2_r2} ${kept_host2_bwa_r2} > ${sample_id}_kept_R2.fastq.gz
     """
+
+    stub:
+    """
+    echo | gzip > ${sample_id}_kept_R1.fastq.gz
+    echo | gzip > ${sample_id}_kept_R2.fastq.gz
+    """
 }
 
 
@@ -55,5 +61,11 @@ process COMBINE_KEPT_FILTERED_COUNTS{
     """
     elucidator rBind --contains _filteredByChrom.tab.txt --delim tab --header  --out ${sample_id}_filteredByChrom.tsv.gz
     elucidator rBind --contains _totalReadCounts.tab.txt --delim tab --header  --out ${sample_id}_totalReadCounts.tsv.gz
+    """
+
+    stub:
+    """
+    echo | gzip > ${sample_id}_filteredByChrom.tsv.gz
+    echo | gzip > ${sample_id}_totalReadCounts.tsv.gz
     """
 }

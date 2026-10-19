@@ -16,4 +16,9 @@ process RUN_MUSIC_DECOMP_PF {
         --all_quants ${all_quant_fnp} \
         --output pf_music_decomp_cell_proportions.tsv
     """
+
+    stub:
+    """
+    touch pf_music_decomp_cell_proportions.tsv
+    """
 }

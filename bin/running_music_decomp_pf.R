@@ -153,10 +153,23 @@ bulk_mat <- as.matrix(all_quants_sp[, 2:ncol(all_quants_sp)])
 rownames(bulk_mat) <- all_quants_sp$new_name
 bulk_eset <- ExpressionSet(assayData = bulk_mat)
 
+# music_prop subsets bulk.mtx without drop = FALSE, so a single sample
+# collapses to a vector and it fails. Each sample is scaled and fit on its
+# own, so run a one-sample batch with a duplicate column and keep only the
+# real sample's row.
+music_bulk_mat <- bulk_mat
+if (ncol(bulk_mat) == 1) {
+  music_bulk_mat <- cbind(bulk_mat, bulk_mat)
+  colnames(music_bulk_mat) <- c(
+    colnames(bulk_mat),
+    paste0(colnames(bulk_mat), "__music_duplicate")
+  )
+}
+
 # Run MuSiC
 message("Running MuSiC deconvolution...")
 music_result <- music_prop(
-  bulk.mtx = bulk_mat,
+  bulk.mtx = music_bulk_mat,
   sc.sce   = sc_sce,
   clusters = "cellType",
   samples  = "pseudoDonor",
@@ -164,7 +177,7 @@ music_result <- music_prop(
 )
 
 # Extract and write results
-music_props <- music_result$Est.prop.weighted
+music_props <- music_result$Est.prop.weighted[colnames(bulk_mat), , drop = FALSE]
 
 music_props_df <- as.data.frame(music_props) %>%
   tibble::rownames_to_column("sample") %>%

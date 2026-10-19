@@ -25,6 +25,11 @@ process MAP_BWA {
     samtools flagstat -@ ${task.cpus} ${sample_id}.sorted.bam > ${sample_id}.flagstat.txt
 
     """
+
+    stub:
+    """
+    touch ${sample_id}.sorted.bam ${sample_id}.sorted.bam.bai ${sample_id}.flagstat.txt
+    """
 }
 
 process MAP_BWA_MARKDUP {
@@ -61,5 +66,10 @@ process MAP_BWA_MARKDUP {
 
     samtools flagstat -@ ${task.cpus} ${sample_id}.sorted.bam > ${sample_id}.flagstat.txt
 
+    """
+
+    stub:
+    """
+    touch ${sample_id}.sorted.bam ${sample_id}.sorted.bam.bai ${sample_id}.flagstat.txt ${sample_id}.markdup_stats.txt
     """
 }

@@ -3,9 +3,6 @@ process SALMON_QUANT {
     publishDir { "${pubdir}" }, mode: 'copy', overwrite: true
 
     tag "${sample_id}_salmon_quant"
-    // label 'process_medium_low_memory'
-    //label 'process_low'
-    maxForks 1
 
     input:
     tuple val(sample_id), path(salmon_index), path(r1), path(r2), val(pubdir)
@@ -33,5 +30,11 @@ process SALMON_QUANT {
         --overWrite --out ${sample_id}_salmon_quants_quant.sf.gz
     ln -s salmon_quants_outputs/lib_format_counts.json ${sample_id}_salmon_quants_lib_format_counts.json
     ln -s salmon_quants_outputs/aux_info/meta_info.json ${sample_id}_salmon_quants_meta_info.json
+    """
+
+    stub:
+    """
+    echo | gzip > ${sample_id}_salmon_quants_quant.sf.gz
+    touch ${sample_id}_salmon_quants_lib_format_counts.json ${sample_id}_salmon_quants_meta_info.json
     """
 }

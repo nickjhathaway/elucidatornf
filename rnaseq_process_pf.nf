@@ -16,8 +16,10 @@ main:
         params.rnaseq_host2_filter_genome_fasta_fnp == null ||
         params.rnaseq_host2_filter_contigs_fnp == null||
         params.rnaseq_salmon_index == null ||
-        params.single_cell_seurat_r_object_fnp == null) {
-        error "flags '--input_fastq_dir', '--outdir', '--rnaseq_host1_filter_genome_fasta_fnp', '--rnaseq_host1_filter_contigs_fnp', '--rnaseq_host2_filter_genome_fasta_fnp', '--rnaseq_host2_filter_contigs_fnp', '--rnaseq_salmon_index', and 'single_cell_seurat_r_object_fnp' must be specified!"
+        params.single_cell_seurat_r_object_fnp == null ||
+        params.rnaseq_kmer_filter_table_fnp == null ||
+        params.rnaseq_kmer_sort_table_fnp == null) {
+        error "flags '--input_fastq_dir', '--outdir', '--rnaseq_host1_filter_genome_fasta_fnp', '--rnaseq_host1_filter_contigs_fnp', '--rnaseq_host2_filter_genome_fasta_fnp', '--rnaseq_host2_filter_contigs_fnp', '--rnaseq_salmon_index', '--single_cell_seurat_r_object_fnp', '--rnaseq_kmer_filter_table_fnp', and '--rnaseq_kmer_sort_table_fnp' must be specified!"
     }
 
     // Create output directory if not exists and overwrite if it does
@@ -33,7 +35,9 @@ main:
                         file(params.rnaseq_host2_filter_genome_fasta_fnp),
                         file(params.rnaseq_host2_filter_contigs_fnp),
                         file(params.rnaseq_salmon_index),
-                        file(params.single_cell_seurat_r_object_fnp)
+                        file(params.single_cell_seurat_r_object_fnp),
+                        file(params.rnaseq_kmer_filter_table_fnp),
+                        file(params.rnaseq_kmer_sort_table_fnp)
      )
 }
 

@@ -29,7 +29,6 @@ process FASTP_TRIM {
     --n_base_limit 0 \\
     --length_required 50 \\
     --dont_eval_duplication \\
-    --qualified_quality_phred 15 --unqualified_percent_limit 40 \\
     --trim_poly_g --trim_poly_x \\
     --low_complexity_filter --complexity_threshold 15 \\
     --thread ${task.cpus} \\
@@ -37,5 +36,12 @@ process FASTP_TRIM {
     --html "${sample_id}.fastp.html"
 
   pigz -p ${task.cpus} "${sample_id}.fastp.json"
+  """
+
+  stub:
+  """
+  echo | gzip > trimmed_${sample_id}_R1.fastq.gz
+  echo | gzip > trimmed_${sample_id}_R2.fastq.gz
+  echo '{}' | gzip > ${sample_id}.fastp.json.gz
   """
 }

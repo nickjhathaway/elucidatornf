@@ -200,10 +200,16 @@ nextflow run elucidatornf/wgs_host_depletion_pf.nf \
 **Required:** `--input_fastq_dir`, `--outdir`, `--rnaseq_host1_filter_genome_fasta_fnp`,
 `--rnaseq_host1_filter_contigs_fnp`, `--rnaseq_host2_filter_genome_fasta_fnp`,
 `--rnaseq_host2_filter_contigs_fnp`, `--rnaseq_salmon_index`,
-`--single_cell_seurat_r_object_fnp`.
+`--single_cell_seurat_r_object_fnp`, `--rnaseq_kmer_filter_table_fnp`,
+`--rnaseq_kmer_sort_table_fnp`.
 
-**Key options:** shares the host-filter options in
-[`conf/params/wgs_common.config`](conf/params/wgs_common.config).
+**Key options:** shares `--wgs_samples_keep_file`, `--wgs_rename_tsv`,
+`--wgs_skip_existing` and the host-filter options in
+[`conf/params/wgs_common.config`](conf/params/wgs_common.config); the k-mer, summary and
+`--salmon_max_forks` options are in [`conf/params/rnaseq.config`](conf/params/rnaseq.config).
+
+Each run writes a `README.md` into `--outdir` describing every results directory and the
+summary columns (template: [`assets/rnaseq_results_README.md`](assets/rnaseq_results_README.md)).
 
 ```bash
 nextflow run elucidatornf/rnaseq_process_pf.nf \
@@ -214,6 +220,8 @@ nextflow run elucidatornf/rnaseq_process_pf.nf \
       --rnaseq_host2_filter_contigs_fnp anopheles_contigs.txt \
       --rnaseq_salmon_index salmon_index/ \
       --single_cell_seurat_r_object_fnp reference.rds \
+      --rnaseq_kmer_filter_table_fnp pfrRNA_restOfGenomeAndMycoplasma.tsv.gz \
+      --rnaseq_kmer_sort_table_fnp multicopyGenesFullGenesOfInterestplusrRNAAndRestGenomeAndMycoplasma.tsv.gz \
       --outdir rnaseq_processed \
       -profile <docker/singularity/apptainer/.../institute>
 ```
