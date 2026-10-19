@@ -1,0 +1,102 @@
+name: build-and-publish-container
+
+# Builds docker/Dockerfile into the `elucidatornf` image, used by the R deconvolution
+# processes (RUN_MUSIC_DECOMP_PF, RUN_INSTAPRISM_DECONVOLUTION_PF; see conf/profiles.config).
+# Mirrors nickjhathaway/elucidator's build-container.yml.
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'docker/Dockerfile'
+      - 'docker/install_packages.R'
+    tags:
+      - 'v*'                             # version tags (v1.2.3) build a versioned image (paths filter is ignored for tags)
+  workflow_dispatch:                     # allows to trigger it manually
+
+permissions:
+  contents: write      # upload the .sif as a release asset
+  packages: write      # push to ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # dev-branch builds are tagged `develop` to match the elucidator image naming
+      - name: Determine version
+        id: vars
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false"               >> "$GITHUB_OUTPUT"
+          else
+            echo "version=develop"                >> "$GITHUB_OUTPUT"
+            echo "prerelease=true"                >> "$GITHUB_OUTPUT"
+          fi
+
+      # the runner's default disk (~14GB free) is tight for this image; reclaim space first
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+          df -h /
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx (docker-container driver supports attestations)
+        uses: docker/setup-buildx-action@v3
+
+      - name: Detect CPU count
+        id: cpu
+        run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
+
+      # ELUCIDATOR_VERSION is left at the Dockerfile default (develop): this repo's
+      # tags are elucidatornf versions, not elucidator versions.
+      - name: Build & push OCI image to both registries
+        uses: docker/build-push-action@v6
+        with:
+          context: docker               # build context = docker/, so COPY install_packages.R works
+          platforms: linux/amd64         # what most HPC nodes need
+          push: true
+          provenance: mode=max           # SLSA build provenance attestation (avoids Scout "missing attestation")
+          sbom: true                     # SBOM attestation so Scout can analyze contents accurately
+          build-args: |
+            CPU_COUNT=${{ steps.cpu.outputs.count }}
+          tags: |
+            docker.io/${{ vars.DOCKERHUB_USERNAME }}/elucidatornf:${{ steps.vars.outputs.version }}
+            docker.io/${{ vars.DOCKERHUB_USERNAME }}/elucidatornf:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/elucidatornf:${{ steps.vars.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/elucidatornf:${{ github.sha }}
+
+      - name: Set up Apptainer
+        uses: eWaterCycle/setup-apptainer@v2
+
+      - name: Build SIF from the image we just pushed
+        run: |
+          apptainer registry login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} docker://ghcr.io
+          apptainer build elucidatornf.sif docker://ghcr.io/${{ github.repository_owner }}/elucidatornf:${{ github.sha }}
+
+      - name: Publish SIF via ORAS (for Apptainer users)
+        run: |
+          apptainer registry login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} oras://ghcr.io
+          apptainer push elucidatornf.sif oras://ghcr.io/${{ github.repository_owner }}/elucidatornf-sif:${{ steps.vars.outputs.version }}
+
+      - name: Publish SIF as a release asset (for Singularity 3.6.4 / everyone)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.version }}
+          prerelease: ${{ steps.vars.outputs.prerelease }}
+          files: elucidatornf.sif

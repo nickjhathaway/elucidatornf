@@ -340,6 +340,10 @@
             "type": "string",
             "description": "Override the container for the apptainer/singularity profiles; pass a file:// URI or absolute path to a prebuilt SIF to skip the pull/mksquashfs build"
         },
+        "elucidatornf_container_image": {
+            "type": "string",
+            "description": "Override the container for the R deconvolution processes (RUN_MUSIC_DECOMP_PF, RUN_INSTAPRISM_DECONVOLUTION_PF), built from docker/Dockerfile; same URI rules as container_image"
+        },
         "machine_cpus": {
             "type": "integer",
             "default": 18,
