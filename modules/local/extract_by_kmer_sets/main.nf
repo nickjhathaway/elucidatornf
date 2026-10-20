@@ -116,6 +116,7 @@ process KMER_SET_SORT {
         --maxIterations 10 \\
         --excludeSetNames ${params.rnaseq_kmer_sort_exclude_sets} \\
         --filterMultiHitReads \\
+        --kmerFrequencyCorrection \\
         ${freq_args} \\
         ${extra_args}
 
