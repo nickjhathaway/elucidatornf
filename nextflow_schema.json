@@ -588,7 +588,7 @@
         "rnaseq_kmer_sort_frequency_max_candidate_depth": {
             "type": "integer",
             "default": 3,
-            "description": "largest k-mer depth eligible for frequency correction (0 removes the cap); keeps real repeat-copy variation in tandem-repeat genes"
+            "description": "largest k-mer depth (reads, duplicate fragments counted once) eligible for frequency correction (0 removes the cap); keeps real copy variation in tandem-repeat genes and paralogs, while low-quality miscalls above it are still corrected"
         },
         "rnaseq_kmer_sort_extra_args": {
             "type": "string",
