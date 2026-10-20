@@ -534,8 +534,7 @@
         },
         "salmon_max_forks": {
             "type": "integer",
-            "default": 1,
-            "description": "maximum concurrent salmon quant tasks; salmon's memory use is much larger than its declared allocation, so concurrency is capped by count"
+            "description": "maximum concurrent salmon quant tasks; unset by default, so the scheduler fits them by declared memory (16 GB each)"
         },
         "single_cell_seurat_r_object_fnp": {
             "type": "string",
