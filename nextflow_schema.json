@@ -541,6 +541,17 @@
             "type": "integer",
             "description": "maximum concurrent salmon quant tasks; unset by default, so the scheduler fits them by declared memory (16 GB each)"
         },
+        "rnaseq_fastp_post_adapter_end_trim": {
+            "type": "boolean",
+            "default": true,
+            "description": "after fastp's adapter trimming, trim rnaseq_fastp_post_adapter_end_trim_bases off both ends of every read, removing the non-templated T/A that A-tail ligation preps leave at read ends"
+        },
+        "rnaseq_fastp_post_adapter_end_trim_bases": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "description": "bases trimmed from each read end by rnaseq_fastp_post_adapter_end_trim"
+        },
         "single_cell_seurat_r_object_fnp": {
             "type": "string",
             "description": "the single cell object Rds file which defines the cell deconvolution"
