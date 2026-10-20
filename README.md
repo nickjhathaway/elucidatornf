@@ -197,11 +197,24 @@ nextflow run elucidatornf/wgs_host_depletion_pf.nf \
 
 ### RNA-seq processing — `rnaseq_process_pf.nf`
 
-**Required:** `--input_fastq_dir`, `--outdir`, `--rnaseq_host1_filter_genome_fasta_fnp`,
-`--rnaseq_host1_filter_contigs_fnp`, `--rnaseq_host2_filter_genome_fasta_fnp`,
-`--rnaseq_host2_filter_contigs_fnp`, `--rnaseq_salmon_index`,
-`--single_cell_seurat_r_object_fnp`, `--rnaseq_kmer_filter_table_fnp`,
-`--rnaseq_kmer_sort_table_fnp`.
+**Required:** `--input_fastq_dir`, `--outdir`, and the reference files, most easily as one
+directory with `--rnaseq_ref_files_dir`:
+
+| Expected name | Individual flag (overrides the directory) |
+| --- | --- |
+| `host1_genome.fasta` (+ bwa index `.fasta.{amb,ann,bwt,pac,sa}` and `host1_genome.mmi`) | `--rnaseq_host1_filter_genome_fasta_fnp` |
+| `host1_remove_contigs.txt` | `--rnaseq_host1_filter_contigs_fnp` |
+| `host2_genome.fasta` (+ bwa index and `host2_genome.mmi`) | `--rnaseq_host2_filter_genome_fasta_fnp` |
+| `host2_remove_contigs.txt` | `--rnaseq_host2_filter_contigs_fnp` |
+| `salmon_index/` (salmon 2.x) | `--rnaseq_salmon_index` |
+| `kmer_filter_table.tsv.gz` | `--rnaseq_kmer_filter_table_fnp` |
+| `kmer_sort_table.tsv.gz` | `--rnaseq_kmer_sort_table_fnp` |
+| `single_cell_seurat.rds` | `--single_cell_seurat_r_object_fnp` |
+
+Without the directory, every flag must be set. A `nonUniqueKmers_<table name>` file next to a
+k-mer table is used automatically. All reference files are checked before anything runs:
+they must exist with their indexes, every contig to remove must be in its genome, the Salmon
+index must be 2.x, and the k-mer tables and RDS must be in the right formats.
 
 **Key options:** `--rnaseq_skip_existing` (default `true`) skips samples already processed
 into `--outdir`; the k-mer, summary and `--salmon_max_forks` options are in
@@ -215,14 +228,7 @@ summary columns (template: [`assets/rnaseq_results_README.md`](assets/rnaseq_res
 ```bash
 nextflow run elucidatornf/rnaseq_process_pf.nf \
       --input_fastq_dir fastq/ \
-      --rnaseq_host1_filter_genome_fasta_fnp human.fasta \
-      --rnaseq_host1_filter_contigs_fnp human_contigs.txt \
-      --rnaseq_host2_filter_genome_fasta_fnp anopheles.fasta \
-      --rnaseq_host2_filter_contigs_fnp anopheles_contigs.txt \
-      --rnaseq_salmon_index salmon_index/ \
-      --single_cell_seurat_r_object_fnp reference.rds \
-      --rnaseq_kmer_filter_table_fnp pfrRNA_restOfGenomeAndMycoplasma.tsv.gz \
-      --rnaseq_kmer_sort_table_fnp multicopyGenesFullGenesOfInterestplusrRNAAndRestGenomeAndMycoplasma.tsv.gz \
+      --rnaseq_ref_files_dir pf_rnaseq_ref_files/ \
       --outdir rnaseq_processed \
       -profile <docker/singularity/apptainer/.../institute>
 ```

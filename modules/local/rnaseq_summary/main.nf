@@ -81,8 +81,9 @@ process RNASEQ_RESULTS_README {
     publishDir { "${pub_dir}" }, mode: 'copy', overwrite: true, pattern: "README.md"
 
     input:
-    // the run summary is staged so the README is written last and can count the samples
-    tuple path(run_summary), path(readme_template), val(pub_dir)
+    // the run summary is staged so the README is written last and can count the samples;
+    // refs: the reference paths as resolved, since each may come from the directory or a flag
+    tuple path(run_summary), path(readme_template), val(refs), val(pub_dir)
 
     output:
     path("README.md")
@@ -96,13 +97,16 @@ process RNASEQ_RESULTS_README {
         -e "s|@N_SAMPLES@|\${n_samples}|" \\
         -e "s|@PF_SETS@|${params.rnaseq_summary_pf_sets}|" \\
         -e "s|@GENE_SETS@|${params.rnaseq_summary_gene_sets}|" \\
-        -e "s|@HOST1_GENOME@|${params.rnaseq_host1_filter_genome_fasta_fnp}|" \\
-        -e "s|@HOST1_CONTIGS@|${params.rnaseq_host1_filter_contigs_fnp}|" \\
-        -e "s|@HOST2_GENOME@|${params.rnaseq_host2_filter_genome_fasta_fnp}|" \\
-        -e "s|@HOST2_CONTIGS@|${params.rnaseq_host2_filter_contigs_fnp}|" \\
-        -e "s|@SALMON_INDEX@|${params.rnaseq_salmon_index}|" \\
-        -e "s|@KMER_FILTER_TABLE@|${params.rnaseq_kmer_filter_table_fnp}|" \\
-        -e "s|@KMER_SORT_TABLE@|${params.rnaseq_kmer_sort_table_fnp}|" \\
+        -e "s|@HOST1_GENOME@|${refs.host1_genome}|" \\
+        -e "s|@HOST1_CONTIGS@|${refs.host1_contigs}|" \\
+        -e "s|@HOST2_GENOME@|${refs.host2_genome}|" \\
+        -e "s|@HOST2_CONTIGS@|${refs.host2_contigs}|" \\
+        -e "s|@SALMON_INDEX@|${refs.salmon_index}|" \\
+        -e "s|@KMER_FILTER_TABLE@|${refs.kmer_filter_table}|" \\
+        -e "s|@KMER_SORT_TABLE@|${refs.kmer_sort_table}|" \\
+        -e "s|@SINGLE_CELL@|${refs.single_cell}|" \\
+        -e "s|@NON_UNIQUE_KMER_TABLES@|${refs.non_unique_kmer_tables}|" \\
+        -e "s|@REF_FILES_DIR@|${refs.ref_files_dir}|" \\
         ${readme_template} > README.md
 
     if grep -q '@[A-Z_]*@' README.md; then

@@ -341,11 +341,15 @@ workflow RUN_RNASEQ_PROCESS_PF{
     def kmer_extraction_dir = "${output_dir}/kmer_extraction"
     file(kmer_extraction_dir).mkdirs()
 
+    // nonUniqueKmers_<table name> beside each table, staged alongside it when present
+    def kmer_filter_non_unique = RnaseqRefFiles.nonUniqueKmerTable(kmer_filter_table_fnp) ?: []
+    def kmer_sort_non_unique = RnaseqRefFiles.nonUniqueKmerTable(kmer_sort_table_fnp) ?: []
+
     KMER_SET_FILTER(combined_kept.map { sid, kept_r1, kept_r2 ->
-        tuple(sid, kept_r1, kept_r2, kmer_filter_table_fnp, kmer_extraction_dir)
+        tuple(sid, kept_r1, kept_r2, kmer_filter_table_fnp, kmer_filter_non_unique, kmer_extraction_dir)
     })
     KMER_SET_SORT(KMER_SET_FILTER.out.kept.map { sid, kept_r1, kept_r2 ->
-        tuple(sid, kept_r1, kept_r2, kmer_sort_table_fnp, kmer_extraction_dir)
+        tuple(sid, kept_r1, kept_r2, kmer_sort_table_fnp, kmer_sort_non_unique, kmer_extraction_dir)
     })
 
     COMBINE_KMER_FILTER_COUNTS(KMER_SET_FILTER.out.counts
@@ -383,8 +387,20 @@ workflow RUN_RNASEQ_PROCESS_PF{
         .map { summaries -> tuple(summaries, summary_dir) })
 
     // a README describing this results directory, written after the run summary
+    def readme_refs = [
+        ref_files_dir          : params.rnaseq_ref_files_dir ?: 'none (each file set by its own flag)',
+        host1_genome           : "${rnaseq_host1_filter_genome_fasta_fnp}",
+        host1_contigs          : "${rnaseq_host1_filter_contigs_fnp}",
+        host2_genome           : "${rnaseq_host2_filter_genome_fasta_fnp}",
+        host2_contigs          : "${rnaseq_host2_filter_contigs_fnp}",
+        salmon_index           : "${salmon_index}",
+        kmer_filter_table      : "${kmer_filter_table_fnp}",
+        kmer_sort_table        : "${kmer_sort_table_fnp}",
+        single_cell            : "${single_cell_seurat_r_object_fnp}",
+        non_unique_kmer_tables : [kmer_filter_non_unique, kmer_sort_non_unique].findAll { f -> f }.collect { f -> f.name }.join(', ') ?: 'none',
+    ]
     RNASEQ_RESULTS_README(RNASEQ_RUN_SUMMARY.out.map { run_summary ->
-        tuple(run_summary, file("${projectDir}/assets/rnaseq_results_README.md"), "${output_dir}")
+        tuple(run_summary, file("${projectDir}/assets/rnaseq_results_README.md"), readme_refs, "${output_dir}")
     })
 
     // running assembly on the vars

@@ -507,6 +507,11 @@
             "type": "string",
             "description": "extra arguments to give sub segment analysis"
         },
+        "rnaseq_ref_files_dir": {
+            "type": "string",
+            "format": "directory-path",
+            "description": "directory of RNA-seq reference files under their expected names (host1_genome.fasta, host1_remove_contigs.txt, host2_genome.fasta, host2_remove_contigs.txt, salmon_index/, kmer_filter_table.tsv.gz, kmer_sort_table.tsv.gz, single_cell_seurat.rds); any individual reference flag overrides its file"
+        },
         "rnaseq_host1_filter_genome_fasta_fnp": {
             "type": "string",
             "description": "the filename path to the first filter genome file"

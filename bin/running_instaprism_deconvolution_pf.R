@@ -234,11 +234,32 @@ ip_props_type_df <- as.data.frame(ip_props_type) %>%
   tibble::rownames_to_column("sample") %>%
   tidyr::pivot_longer(-sample, names_to = "stage", values_to = "proportion")
 
+# Coarse stage of each fine stage, so the fine proportions can be read within their
+# coarse stage. Fine stages should nest in one coarse stage; if one doesn't, use the
+# coarse stage most of its cells carry and say so.
+fine_to_coarse <- tibble::tibble(
+  stage = cell_state_labels, coarse_stage = cell_type_labels
+) %>%
+  dplyr::count(stage, coarse_stage) %>%
+  group_by(stage) %>%
+  mutate(n_coarse = n()) %>%
+  slice_max(n, n = 1, with_ties = FALSE) %>%
+  ungroup()
+not_nested <- fine_to_coarse %>% filter(n_coarse > 1) %>% pull(stage)
+if (length(not_nested) > 0) {
+  warning(
+    "fine stages spanning more than one coarse stage, labelled with their ",
+    "most common coarse stage: ", paste(not_nested, collapse = ", ")
+  )
+}
+
 # Cell state level (fine)
 ip_props_state <- t(ip_result@Post.ini.cs@theta)
-ip_props_state_df = as.data.frame(ip_props_state) %>%
-      tibble::rownames_to_column("sample") %>%
-      tidyr::pivot_longer(-sample, names_to = "stage", values_to = "proportion")
+ip_props_state_df <- as.data.frame(ip_props_state) %>%
+  tibble::rownames_to_column("sample") %>%
+  tidyr::pivot_longer(-sample, names_to = "stage", values_to = "proportion") %>%
+  left_join(fine_to_coarse %>% select(stage, coarse_stage), by = "stage") %>%
+  relocate(coarse_stage, .after = sample)
 
 message(paste("Writing output to:", opt$output_fine, "and", opt$output_course))
 readr::write_tsv(ip_props_state_df, opt$output_fine)

@@ -4,6 +4,8 @@
 //   KMER_SET_SORT    sorts the remaining reads into the genes/gene families of the table
 // Each pass writes three count tables (extractionCounts, multihitCounts,
 // inversePairsCounts), already carrying a sample column.
+// elucidator reads nonUniqueKmers_<table name> from beside the k-mer table when it
+// exists, so that file comes in as a second input, empty ([]) when there is none.
 
 process KMER_SET_FILTER {
 
@@ -12,7 +14,7 @@ process KMER_SET_FILTER {
     publishDir { "${pub_dir}/counts" }, mode: 'copy', overwrite: true, pattern: "*.tab.txt"
 
     input:
-    tuple val(sample_id), path(r1), path(r2), path(kmer_table), val(pub_dir)
+    tuple val(sample_id), path(r1), path(r2), path(kmer_table), path(non_unique_kmer_table), val(pub_dir)
 
     output:
     tuple val(sample_id),
@@ -84,7 +86,7 @@ process KMER_SET_SORT {
     publishDir { "${pub_dir}/counts" }, mode: 'copy', overwrite: true, pattern: "*.tab.txt"
 
     input:
-    tuple val(sample_id), path(r1), path(r2), path(kmer_table), val(pub_dir)
+    tuple val(sample_id), path(r1), path(r2), path(kmer_table), path(non_unique_kmer_table), val(pub_dir)
 
     output:
     tuple val(sample_id), path("${sample_id}/*.fastq.gz"), emit: fastqs, optional: true
