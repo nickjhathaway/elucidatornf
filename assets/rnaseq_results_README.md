@@ -18,6 +18,7 @@ through every step, QC, and Salmon mapping rates.
 | `kmer_extraction/` | k-mer read counts combined over all samples: `kmer_filter_*` (removing mycoplasma and Pf rRNA) and `kmer_sort_*` (sorting reads by gene) |
 | `kmer_extraction/counts/` | the same count tables, per sample |
 | `kmer_extraction/sorted_fastqs/<sample>/` | reads sorted by gene: `<gene>_R1/_R2.fastq.gz` pairs and `<gene>.fastq.gz` unpaired reads |
+| `pathweaver_assemblies/<sample>/` | PathWeaver assemblies of the sorted reads (sets: @PATHWEAVER_SETS@): `<gene>_output_aboveCutOff.fasta`, empty when nothing assembled |
 | `pipeline_info/` | Nextflow execution report, timeline and trace for each run |
 
 ## Reading the summary

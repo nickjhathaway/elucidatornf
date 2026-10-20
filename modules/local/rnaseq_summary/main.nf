@@ -97,6 +97,7 @@ process RNASEQ_RESULTS_README {
         -e "s|@N_SAMPLES@|\${n_samples}|" \\
         -e "s|@PF_SETS@|${params.rnaseq_summary_pf_sets}|" \\
         -e "s|@GENE_SETS@|${params.rnaseq_summary_gene_sets}|" \\
+        -e "s|@PATHWEAVER_SETS@|${params.rnaseq_pathweaver_gene_sets ?: 'none'}|" \\
         -e "s|@HOST1_GENOME@|${refs.host1_genome}|" \\
         -e "s|@HOST1_CONTIGS@|${refs.host1_contigs}|" \\
         -e "s|@HOST2_GENOME@|${refs.host2_genome}|" \\

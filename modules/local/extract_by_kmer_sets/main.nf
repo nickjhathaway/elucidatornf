@@ -138,6 +138,7 @@ process KMER_SET_SORT {
     """
     mkdir ${sample_id}
     echo | gzip > ${sample_id}/vars_R1.fastq.gz
+    echo | gzip > ${sample_id}/vars_R2.fastq.gz
     for tab in extractionCounts multihitCounts inversePairsCounts; do touch ${sample_id}_kmer_sort_\${tab}.tab.txt; done
     """
 }

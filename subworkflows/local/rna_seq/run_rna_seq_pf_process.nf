@@ -34,6 +34,8 @@ include { RNASEQ_SAMPLE_SUMMARY } from '../../../modules/local/rnaseq_summary'
 include { RNASEQ_RUN_SUMMARY } from '../../../modules/local/rnaseq_summary'
 include { RNASEQ_RESULTS_README } from '../../../modules/local/rnaseq_summary'
 
+include { PATHWEAVER_ASSEMBLE_SORTED } from '../../../modules/local/pathweaver_assemble_sorted'
+
 
 // Published per-sample outputs that the cohort-level steps (quant combining,
 // deconvolution, count combining, run summary) need from every sample, including
@@ -48,6 +50,16 @@ def rnaseqPublishedOutputs(output_dir, sample_id) {
         kmer_sort_counts   : count_tabs.collect { tab -> file("${counts_dir}/${sample_id}_kmer_sort_${tab}.tab.txt") },
         summary            : file("${output_dir}/summary/${sample_id}_rnaseq_summary.tab.txt"),
     ]
+}
+
+// PATHWEAVER_ASSEMBLE_SORTED inputs for one sample: one per set with paired sorted reads
+def pathweaverInputs(sets, pathweaver_dir, sample_id, fastqs) {
+    def by_name = fastqs.collectEntries { f -> [(f.name): f] }
+    return sets.findAll { set -> by_name["${set}_R1.fastq.gz"] && by_name["${set}_R2.fastq.gz"] }
+        .collect { set ->
+            tuple(sample_id, set, by_name["${set}_R1.fastq.gz"], by_name["${set}_R2.fastq.gz"],
+                  by_name["${set}.fastq.gz"] ?: [], "${pathweaver_dir}/${sample_id}")
+        }
 }
 
 // A sample is skipped only when every output above exists; anything less reruns it in full.
@@ -403,8 +415,22 @@ workflow RUN_RNASEQ_PROCESS_PF{
         tuple(run_summary, file("${projectDir}/assets/rnaseq_results_README.md"), readme_refs, "${output_dir}")
     })
 
-    // running assembly on the vars
+    // PathWeaver on the sorted reads of the chosen sets. Skipped samples are assembled from their
+    // published sorted fastqs when an assembly is missing, so sets can be added to an existing outdir.
+    def pathweaver_sets = params.rnaseq_pathweaver_gene_sets.toString().tokenize(',')*.trim().findAll { s -> s }
+    def pathweaver_dir = "${output_dir}/pathweaver_assemblies"
+    def sorted_fastqs_dir = "${kmer_extraction_dir}/sorted_fastqs"
 
-    // running the domain determination on the assembled vars
+    pathweaver_new_in = KMER_SET_SORT.out.fastqs
+        .flatMap { sid, fastqs -> pathweaverInputs(pathweaver_sets, pathweaver_dir, sid, fastqs instanceof List ? fastqs : [fastqs]) }
+    pathweaver_done_in = samples_ch.done
+        .flatMap { final_id, _reads ->
+            def missing = pathweaver_sets.findAll { set -> !file("${pathweaver_dir}/${final_id}/${set}_output_aboveCutOff.fasta").exists() }
+            def published = missing.collectMany { set -> ["${set}_R1.fastq.gz", "${set}_R2.fastq.gz", "${set}.fastq.gz"] }
+                .collect { name -> file("${sorted_fastqs_dir}/${final_id}/${name}") }
+                .findAll { f -> f.exists() }
+            pathweaverInputs(pathweaver_sets, pathweaver_dir, final_id, published)
+        }
+    PATHWEAVER_ASSEMBLE_SORTED(pathweaver_new_in.mix(pathweaver_done_in))
 
 }

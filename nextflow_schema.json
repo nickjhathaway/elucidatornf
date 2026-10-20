@@ -604,6 +604,16 @@
             "default": "vars,rifins,stevors,surfins",
             "description": "comma-separated sets of the k-mer sort table given their own read-count column in the run summary"
         },
+        "rnaseq_pathweaver_gene_sets": {
+            "type": "string",
+            "default": "vars,rifins,stevors,surfins",
+            "description": "comma-separated sets of the k-mer sort table assembled with PathWeaver for each sample; empty turns the assembly off"
+        },
+        "rnaseq_pathweaver_args": {
+            "type": "string",
+            "default": "--headlessTailessLenCutOff 200 --trimAllShortTips --autoDetermineKCuts --autoDetermineKCutsOnNodeCount",
+            "description": "arguments for PathWeaver SeqsExtractPathways; the inputs, --revCompMate, output, threads and sample name are set by the pipeline"
+        },
         "wgs_host1_filter_genome_fasta_fnp": {
             "type": "string",
             "description": "the filename path to the first filter genome file"
