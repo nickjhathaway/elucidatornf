@@ -191,22 +191,36 @@ Please correct the above issues and re-run.
 
 
     // create a list of input to cluster for the input that actually exists
+    // Targets with no read overlap (NoOverLap status) are extracted as unstitched pairs
+    // (<target><sample>_R1.fastq.gz and <target><sample>_R2.fastq.gz) and, as in setUpTarAmpAnalysis,
+    // are clustered as two separate targets named <target>-R1 and <target>-R2
     def clustered_inputs_with_key = targets.combine(ILLUMINA_EXTRACTOR.out.sample_dir)
-        .map { tar, samp, sampdir ->
-
-            def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
-            if( !extracted_tar_sample_fnp.exists() ) return null
+        .flatMap { tar, samp, sampdir ->
 
             // apply optional renaming (fallback to original if not present)
             def samp_renamed = rename_key.containsKey(samp) ? rename_key[samp] : samp
 
+            def found_inputs = []
+            def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
+            if( extracted_tar_sample_fnp.exists() ){
+                found_inputs << [extracted_tar_sample_fnp, tar]
+            } else {
+                ["R1", "R2"].each { mate ->
+                    def mate_fnp = file("${sampdir}/${tar}${samp}_${mate}.fastq.gz")
+                    if( mate_fnp.exists() ){
+                        found_inputs << [mate_fnp, "${tar}-${mate}".toString()]
+                    }
+                }
+            }
+
             // emit BOTH: the clustering tuple + the mapping tuple
-            tuple(
-                tuple(extracted_tar_sample_fnp, samp_renamed, tar, params.illumina_clustering_error_profile),
-                tuple(samp, samp_renamed)
-            )
+            found_inputs.collect { fnp, clus_tar ->
+                tuple(
+                    tuple(fnp, samp_renamed, clus_tar, params.illumina_clustering_error_profile),
+                    tuple(samp, samp_renamed)
+                )
+            }
         }
-        .filter { entry -> entry != null }
 
     // split into the two channels we want
     def input_to_clustering = clustered_inputs_with_key.map { entry -> entry[0] }
