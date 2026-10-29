@@ -14,7 +14,7 @@ include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
-include { WRITE_SAMPLE_NAME_KEY } from "../../../modules/local/write_sample_name_key/main.nf"
+include { WRITE_AMPLICON_SAMPLE_KEY } from "../../../modules/local/write_amplicon_sample_key/main.nf"
 include { SCAN_RAW_INPUT_SAMPLE_NAMES } from "../../../modules/local/scan_raw_input_sample_names/main.nf"
 
 include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
@@ -147,8 +147,17 @@ Please correct the above issues and re-run.
     def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
 
-    // optional sample renaming map
-    def rename_key = SampleRename.loadRenameKey(params.nanopore_rename_key_fnp)
+    // optional sample key, input name -> rows of sample, replicate and barcodes (see lib/SampleKey.groovy)
+    def sample_key = SampleKey.load(SampleKey.keyFnp(params))
+    def keyed_names = SampleKey.keyedNames(sample_key)
+    // barcoded inputs get their own id file with only their MIDs, named by replicate so the extractor
+    // writes <target><replicate>.fastq.gz for them
+    def mid_id_dir = file("${meta_info_dir}/midIdFiles")
+    def barcoded_inputs = sample_key.findAll { _input, rows -> rows[0].fbarcode }
+    barcoded_inputs.each { input, rows ->
+        SampleKey.writeIdFile(primers_fnp, rows, "${mid_id_dir}/${input}_ids.tsv")
+    }
+    def all_mids_id_fnp = SampleKey.writeCombinedIdFile(primers_fnp, sample_key, "${mid_id_dir}/allMids_ids.tsv")
 
     primers_fnp_ch = primers_fnp
 
@@ -170,26 +179,27 @@ Please correct the above issues and re-run.
     SCAN_RAW_INPUT_SAMPLE_NAMES(input_fastq_dir, "nanopore", input_recursive, prefix_with_top_dir, bam_sample_name_from_sm, meta_info_dir.toString())
 
     // SeekDeep only looks at fastqs by default, so have it look at bams as well
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir, '.*\\.(fastq(\\.gz)?|bam)', input_recursive)
+    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir, '.*\\.(fastq(\\.gz)?|bam)', input_recursive)
 
     def scanned_samples_ch = SCAN_RAW_INPUT_SAMPLE_NAMES.out.sample_names
         .splitCsv(header: true, sep: '\t')
         .filter { row -> row.status == "ok" }
 
-    // rename key entries are matched against the scanned names, which carry the top dir prefix when it's on,
-    // so warn about entries that won't rename anything rather than silently leaving those samples as is
-    if (!rename_key.isEmpty()) {
+    // sample key inputs are matched against the scanned names, which carry the top dir prefix when it's on,
+    // so warn about entries that won't match anything rather than silently leaving those samples as is
+    if (!sample_key.isEmpty()) {
         scanned_samples_ch
             .toList()
             .subscribe { rows ->
                 def scanned_names = rows.collect { row -> row.sample } as Set
-                def unmatched = rename_key.keySet().findAll { old_name -> !scanned_names.contains(old_name) }.sort()
+                def unmatched = sample_key.keySet().findAll { input -> !scanned_names.contains(input) }.sort()
                 if (!unmatched.isEmpty()) {
-                    def base_name_hits = unmatched.findAll { old_name -> rows.any { row -> row.baseName == old_name } }
+                    def base_name_hits = unmatched.findAll { input -> rows.any { row -> row.baseName == input } }
                     def hint = base_name_hits.isEmpty() ? "" :
                         ". ${base_name_hits.join(", ")} match sample names before the top directory prefix, " +
-                        "the rename key needs the prefixed names (see ${meta_info_dir}/rawInputSampleNames.tsv)"
-                    log.warn "--nanopore_rename_key_fnp entries that don't match any input sample and won't be used: ${unmatched.join(", ")}${hint}"
+                        "the sample key needs the prefixed names (see ${meta_info_dir}/rawInputSampleNames.tsv)"
+                    log.warn "sample key inputs that don't match any input sample and won't be used: ${unmatched.join(", ")}${hint}"
                 }
             }
     }
@@ -201,10 +211,14 @@ Please correct the above issues and re-run.
     input_to_extractor = reads_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
             .map{reads_fnp, sample_name, info_dir, auto_flags_fnp ->
+                // an input left out of the key is a sample named after itself, which can't also be a keyed name
+                if (!sample_key.containsKey(sample_name) && keyed_names.contains(sample_name)) {
+                    error "input ${sample_name} isn't in the sample key but is the name of a sample or replicate in it, add it to the key"
+                }
                 tuple(
                     reads_fnp,
                     sample_name,
-                    primers_fnp,
+                    barcoded_inputs.containsKey(sample_name) ? file("${mid_id_dir}/${sample_name}_ids.tsv") : primers_fnp,
                     file("${info_dir}/allKmers.tab.txt.gz"),
                     file("${info_dir}/lenCutOffs.txt"),
                     auto_flags_fnp,
@@ -219,6 +233,7 @@ Please correct the above issues and re-run.
     CONCATENATE_EXTRACTOR_BY_KMER_MATCHING(
         EXTRACTOR_BY_KMER_MATCHING.out.extraction_profile_per_target | collect,
         EXTRACTOR_BY_KMER_MATCHING.out.extraction_stats | collect,
+        EXTRACTOR_BY_KMER_MATCHING.out.extraction_profile_per_mid.collect().ifEmpty([]),
         extraction_reports_dir
     )
 
@@ -230,36 +245,32 @@ Please correct the above issues and re-run.
             }
 
 
-    // create a list of input to cluster for the input that actually exists
+    // create a list of input to cluster for the input that actually exists. An input holds a single sample,
+    // or several MID tagged ones when it has barcodes in the sample key. Each sample/replicate is clustered
+    // on its own and population clustering combines the replicates of a sample
     def clustered_inputs_with_key = targets.combine(EXTRACTOR_BY_KMER_MATCHING.out.sample_dir)
-        .map { tar, samp, sampdir ->
+        .flatMap { tar, input, sampdir ->
+            SampleKey.rowsForInput(sample_key, input).findResults { row ->
+                def extracted_tar_sample_fnp = file("${sampdir}/${tar}${row.extraction_name}.fastq.gz")
+                if( !extracted_tar_sample_fnp.exists() ) return null
 
-            def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
-            if( !extracted_tar_sample_fnp.exists() ) return null
-
-            // apply optional renaming (fallback to original if not present)
-            def samp_renamed = rename_key.containsKey(samp) ? rename_key[samp] : samp
-
-            // emit BOTH: the clustering tuple + the mapping tuple
-            tuple(
-                tuple(extracted_tar_sample_fnp, samp_renamed, tar, params.nanopore_clustering_ncpus),
-                tuple(samp, samp_renamed)
-            )
+                // emit BOTH: the clustering tuple + the sample key line
+                tuple(
+                    tuple(extracted_tar_sample_fnp, row.sample, row.replicate, tar, params.nanopore_clustering_ncpus),
+                    SampleKey.keyLine(row)
+                )
+            }
         }
-        .filter { entry -> entry != null }
 
     // split into the two channels we want
     def input_to_clustering = clustered_inputs_with_key.map { entry -> entry[0] }
-    def sample_key_ch       = clustered_inputs_with_key.map { entry -> entry[1] }.distinct()
 
-    // write sample rename key (old -> new) for samples that had extracted reads
-    // sample_key_ch is a channel of tuples: (oldName, newName)
-    def sample_key_lines_ch = sample_key_ch
-        .map { oldName, newName -> "${oldName}\t${newName}" }
-        .distinct()
+    // write the sample key for the samples that had extracted reads
+    def sample_key_lines_ch = clustered_inputs_with_key.map { entry -> entry[1] }
+        .unique()
         .collect()
 
-    WRITE_SAMPLE_NAME_KEY(sample_key_lines_ch, meta_info_dir.toString())
+    WRITE_AMPLICON_SAMPLE_KEY(sample_key_lines_ch, meta_info_dir.toString())
     //cluster per target per sample
     AMPLICON_CLUSTER_BY_KMER_SIMILARITY(input_to_clustering)
 

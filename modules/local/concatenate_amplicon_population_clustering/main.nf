@@ -14,8 +14,10 @@ process CONCATENATE_AMPLICON_POPULATION_CLUSTERING {
     path "allele_data.tsv.gz", emit: allele_data
 
     script:
+    // there are per replicate columns (R1_*, R2_*, ...) up to the most replicates a sample has for a target,
+    // so targets can differ in their columns when samples have replicates, --fill adds the missing ones as NA
     """
-    elucidator rBind --recursive --contains selectedClustersInfo.tab.txt.gz --delim tab --header --out allSelectedClustersInfo.tsv.gz
+    elucidator rBind --recursive --contains selectedClustersInfo.tab.txt.gz --delim tab --header --fill --out allSelectedClustersInfo.tsv.gz
     elucidator tableExtractColumns --file allSelectedClustersInfo.tsv.gz --delim tab --header --columns s_Sample,p_name,h_Consensus,c_ReadCnt | \
             elucidator tableRenameColumns --rename_key "s_Sample:library_sample_name;p_name:target_name;h_Consensus:seq;c_ReadCnt:reads" --file STDIN --delim tab --header --out allele_data.tsv.gz
     """

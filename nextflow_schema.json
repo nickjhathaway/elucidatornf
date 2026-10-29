@@ -400,9 +400,13 @@
             "type": "string",
             "description": "if set, will turn on homopolymer gap correction during variant calling on microhaplotypes"
         },
+        "amplicon_sample_key_fnp": {
+            "type": "string",
+            "description": "a tab delimited sample key with a header, required columns input and sample, optional columns replicate, fbarcode and rbarcode; a sample on more than one row has replicates, fbarcode/rbarcode give the MIDs of samples pooled within an input"
+        },
         "nanopore_rename_key_fnp": {
             "type": "string",
-            "description": "a file for renaming the input samples"
+            "description": "a file for renaming the input samples, a 2 column old/new name file or the amplicon_sample_key_fnp format"
         },
         "nanopore_render_clustering_report": {
             "type": "boolean",

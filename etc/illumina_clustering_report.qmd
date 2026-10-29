@@ -97,23 +97,32 @@ pdf_download_button <- function(expr, filename, width, height, label = filename)
 
 
 ```{r}
-sample_name_key = readr::read_tsv("meta/sample_name_key.tsv")
+# one row per sample/replicate: input, sample, replicate, fbarcode, rbarcode, extraction_name
+sample_name_key = readr::read_tsv("meta/sample_name_key.tsv", col_types = readr::cols(.default = "c"))
+# the extraction stats are per input, labelled by replicate when the input holds a single sample,
+# an input with MIDs holds several so it keeps its own name
+input_name_key = sample_name_key %>%
+  group_by(input) %>%
+  summarise(sample_name = if (n() == 1) first(replicate) else first(input), .groups = "drop") %>%
+  dplyr::rename(sampleName = input)
 ```
 
 ```{r}
 allExtractionStats = readr::read_tsv("extractionReports/allExtractionStats.tsv.gz") %>%
-  left_join(sample_name_key %>%
-              dplyr::rename(sampleName = old_sample_name,
-                            sample_name = new_sample_name)) %>%
+  left_join(input_name_key) %>%
   mutate(sample_name = ifelse(is.na(sample_name), sampleName, sample_name))
 
 allExtractionStats_sample_fig_w <- max(6, n_distinct(allExtractionStats$sample_name) * cell_w)
 
 
+# the profile is per target and extraction name (<target><input> or <target><replicate> with MIDs), so
+# each row is matched to its replicate, rows for unknown MIDs or inputs without extracted reads keep the input name
 allExtractionProfile = readr::read_tsv("extractionReports/allExtractionProfile.tsv.gz") %>%
   left_join(sample_name_key %>%
-              dplyr::rename(sampleName = old_sample_name,
-                            sample_name = new_sample_name)) %>%
+              select(sampleName = input, extraction_name, sample_name = replicate),
+            by = "sampleName", relationship = "many-to-many") %>%
+  filter(is.na(extraction_name) | name == paste0(target, extraction_name)) %>%
+  select(-extraction_name) %>%
   mutate(sample_name = ifelse(is.na(sample_name), sampleName, sample_name))
 
 targets_name_key = tibble()

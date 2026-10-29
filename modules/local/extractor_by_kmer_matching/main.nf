@@ -13,6 +13,8 @@ process EXTRACTOR_BY_KMER_MATCHING {
 
     path "${sample_name}_extractionProfile.tab.txt", emit: extraction_profile_per_target
     path "${sample_name}_extractionStats.tab.txt", emit: extraction_stats
+    // only written when the input has MIDs
+    path "${sample_name}_extractionProfilePerMID.tab.txt", emit: extraction_profile_per_mid, optional : true
 
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
@@ -33,6 +35,9 @@ process EXTRACTOR_BY_KMER_MATCHING {
             ${extra_args} \$(cat ${auto_flags_fnp})
     ln -s extraction/extractionProfile.tab.txt ${sample_name}_extractionProfile.tab.txt
     ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt
+    if [ -f extraction/extractionProfilePerMID.tab.txt ]; then
+        ln -s extraction/extractionProfilePerMID.tab.txt ${sample_name}_extractionProfilePerMID.tab.txt
+    fi
 
     """
 }

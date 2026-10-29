@@ -65,7 +65,7 @@ The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` share an option
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--illumina_clustering_min_sample_read_count`, `--illumina_clustering_trim_front`,
 `--illumina_clustering_trim_back`, `--illumina_clustering_population_ncpus`,
-`--amplicon_clustering_pop_clustering_extra_args`.
+`--amplicon_clustering_pop_clustering_extra_args`, `--amplicon_sample_key_fnp`.
 
 ```bash
 nextflow run elucidatornf/illumina_clustering.nf \
@@ -77,6 +77,35 @@ nextflow run elucidatornf/illumina_clustering.nf \
       --outdir analysis_illumina \
       -profile <docker/singularity/apptainer/.../institute>
 ```
+
+#### Sample key: renaming, replicates and MIDs
+
+`--amplicon_sample_key_fnp` (Illumina and nanopore) takes a tab delimited file with a header, one
+row per input and, for pooled inputs, per barcode:
+
+| input | sample | replicate | fbarcode | rbarcode |
+|---|---|---|---|---|
+| Run1_LibA_S1 | P001 | | ACGTACGTAC | TTGACCATGC |
+| Run1_LibA_S1 | P002 | | TGCATGCATG | CCAGTTGACA |
+| Run2_LibA_S3 | P001 | | ACGTACGTAC | TTGACCATGC |
+| Sample9_S4 | P009 | | | |
+
+- `input` (required) is the input name: the fastq pair prefix for Illumina (`Run1_LibA_S1` for
+  `Run1_LibA_S1_R1_001.fastq.gz`), the name in `meta/rawInputSampleNames.tsv` for nanopore.
+- `sample` (required) is the final sample name. **A sample on more than one row has replicates**,
+  which are clustered separately and combined during population clustering (by default a haplotype
+  has to be found in every replicate that passes `--*_clustering_min_sample_read_count`, give
+  `--runsRequired` in `--amplicon_clustering_pop_clustering_extra_args` to change that).
+- `replicate` (optional) names the replicate. Left blank it's the sample name when the sample has
+  one row, otherwise the input name plus the barcodes, which can't collide.
+- `fbarcode`/`rbarcode` (optional) are the MIDs of each sample pooled in the input (`rbarcode` only
+  for dual barcoding). Each barcoded input is demultiplexed with only its own MIDs, and the barcode
+  lengths are taken into account when deciding which targets can be stitched.
+- Inputs that aren't in the key are processed as their own sample. The 2 column headerless
+  `--nanopore_rename_key_fnp` format (old name, new name) still works.
+
+`meta/sample_name_key.tsv` records the input, sample, replicate and barcodes of every sample that
+had extracted reads.
 
 ### Nanopore amplicon clustering — `nanopore_clustering.nf`
 
@@ -104,7 +133,8 @@ SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology na
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--nanopore_clustering_min_len`, `--nanopore_clustering_min_sample_read_count`,
 `--nanopore_clustering_max_reads_use`, `--nanopore_extractor_use_inner_primers`,
-`--nanopore_primers_errors_allowed`, `--nanopore_rename_key_fnp`,
+`--nanopore_primers_errors_allowed`, `--amplicon_sample_key_fnp` (see
+[Sample key](#sample-key-renaming-replicates-and-mids)),
 `--nanopore_bam_sample_name_from_sm`, `--nanopore_input_recursive`,
 `--nanopore_sample_name_prefix_top_dir`, `--nanopore_render_clustering_report`.
 

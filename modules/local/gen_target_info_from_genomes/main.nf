@@ -132,6 +132,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
     path genome_dir
     path gff_dir
     val paired_end_length
+    val barcode_size // bases of MIDs in the reads (forward plus reverse), taken into account for the overlap statuses
     val errors_allowed
     val ncpus
 
@@ -147,6 +148,7 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
         SeekDeep genTargetInfoFromGenomes \
                 --primers ${primers_fnp} \
                 --pairedEndLength ${paired_end_length} \
+                --barcodeSize ${barcode_size} \
                 --genomeDir ${genome_dir} \
                 --gffDir ${gff_dir} \
                 --dout genome_extraction \

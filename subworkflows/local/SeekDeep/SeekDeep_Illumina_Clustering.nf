@@ -13,7 +13,7 @@ include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/lo
 include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/gen_target_info_from_genomes/main.nf'
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
-include { WRITE_SAMPLE_NAME_KEY } from "../../../modules/local/write_sample_name_key/main.nf"
+include { WRITE_AMPLICON_SAMPLE_KEY } from "../../../modules/local/write_amplicon_sample_key/main.nf"
 
 include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
 
@@ -142,28 +142,53 @@ Please correct the above issues and re-run.
     def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
 
-    // optional sample renaming map
-    def rename_key = SampleRename.loadRenameKey(params.nanopore_rename_key_fnp)
+    // optional sample key, input name -> rows of sample, replicate and barcodes (see lib/SampleKey.groovy)
+    def sample_key = SampleKey.load(SampleKey.keyFnp(params))
+    def keyed_names = SampleKey.keyedNames(sample_key)
+    // barcoded inputs get their own id file with only their MIDs, named by replicate so the extractor
+    // writes <target><replicate>.fastq.gz for them
+    def mid_id_dir = file("${meta_info_dir}/midIdFiles")
+    def barcoded_inputs = sample_key.findAll { _input, rows -> rows[0].fbarcode }
+    barcoded_inputs.each { input, rows ->
+        SampleKey.writeIdFile(primers_fnp, rows, "${mid_id_dir}/${input}_ids.tsv")
+    }
+    def all_mids_id_fnp = SampleKey.writeCombinedIdFile(primers_fnp, sample_key, "${mid_id_dir}/allMids_ids.tsv")
+    // MIDs take up part of the reads, so the overlap statuses take the longest barcodes into account, otherwise
+    // targets that no longer overlap enough to stitch are lost instead of being clustered as <target>-R1 and <target>-R2
+    def barcode_size = sample_key.values().flatten().collect { row -> row.fbarcode.size() + row.rbarcode.size() }.max() ?: 0
 
     primers_fnp_ch = primers_fnp
 
 
-    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, paired_end_length, primers_errors_allowed, params.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)
 
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir, "", false)
+    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir, "", false)
     //@todo, concatenate lanes if multiple present
     fastq_input_ch = channel.fromFilePairs(
         ["${input_fastq_dir}/*_{1,2}{_001,}.fastq{.gz,}",
         "${input_fastq_dir}/*_{R1,R2}{_001,}.fastq{.gz,}"]
     )
+    if (!sample_key.isEmpty()) {
+        fastq_input_ch.map { sample_id, _reads -> sample_id }.collect().subscribe { names ->
+            def unmatched = sample_key.keySet().findAll { input -> !names.contains(input) }.sort()
+            if (unmatched) {
+                log.warn "sample key inputs that don't match any input fastq pair and won't be used: ${unmatched.join(", ")}"
+            }
+        }
+    }
     input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
             .map{sample_id, reads, info_dir, auto_flags_fnp ->
+                // an input left out of the key is a sample named after itself, which can't also be a keyed name
+                if (!sample_key.containsKey(sample_id) && keyed_names.contains(sample_id)) {
+                    error "input ${sample_id} isn't in the sample key but is the name of a sample or replicate in it, add it to the key"
+                }
                 tuple(
                     reads[0],
                     reads[1],
                     sample_id,
-                    primers_fnp,
+                    barcoded_inputs.containsKey(sample_id) ? file("${mid_id_dir}/${sample_id}_ids.tsv") : primers_fnp,
                     file("${info_dir}/overlapStatuses.txt"),
                     file("${info_dir}/lenCutOffs.txt"),
                     auto_flags_fnp,
@@ -194,46 +219,43 @@ Please correct the above issues and re-run.
     // Targets with no read overlap (NoOverLap status) are extracted as unstitched pairs
     // (<target><sample>_R1.fastq.gz and <target><sample>_R2.fastq.gz) and, as in setUpTarAmpAnalysis,
     // are clustered as two separate targets named <target>-R1 and <target>-R2
+    // An input holds a single sample, or several MID tagged ones when it has barcodes in the sample key.
+    // Each sample/replicate is clustered on its own and population clustering combines the replicates of a sample
     def clustered_inputs_with_key = targets.combine(ILLUMINA_EXTRACTOR.out.sample_dir)
-        .flatMap { tar, samp, sampdir ->
-
-            // apply optional renaming (fallback to original if not present)
-            def samp_renamed = rename_key.containsKey(samp) ? rename_key[samp] : samp
-
-            def found_inputs = []
-            def extracted_tar_sample_fnp = file("${sampdir}/${tar}${samp}.fastq.gz")
-            if( extracted_tar_sample_fnp.exists() ){
-                found_inputs << [extracted_tar_sample_fnp, tar]
-            } else {
-                ["R1", "R2"].each { mate ->
-                    def mate_fnp = file("${sampdir}/${tar}${samp}_${mate}.fastq.gz")
-                    if( mate_fnp.exists() ){
-                        found_inputs << [mate_fnp, "${tar}-${mate}".toString()]
+        .flatMap { tar, input, sampdir ->
+            SampleKey.rowsForInput(sample_key, input).collectMany { row ->
+                def found_inputs = []
+                def extracted_tar_sample_fnp = file("${sampdir}/${tar}${row.extraction_name}.fastq.gz")
+                if( extracted_tar_sample_fnp.exists() ){
+                    found_inputs << [extracted_tar_sample_fnp, tar]
+                } else {
+                    ["R1", "R2"].each { mate ->
+                        def mate_fnp = file("${sampdir}/${tar}${row.extraction_name}_${mate}.fastq.gz")
+                        if( mate_fnp.exists() ){
+                            found_inputs << [mate_fnp, "${tar}-${mate}".toString()]
+                        }
                     }
                 }
-            }
 
-            // emit BOTH: the clustering tuple + the mapping tuple
-            found_inputs.collect { fnp, clus_tar ->
-                tuple(
-                    tuple(fnp, samp_renamed, clus_tar, params.illumina_clustering_error_profile),
-                    tuple(samp, samp_renamed)
-                )
+                // emit BOTH: the clustering tuple + the sample key line
+                found_inputs.collect { fnp, clus_tar ->
+                    tuple(
+                        tuple(fnp, row.sample, row.replicate, clus_tar, params.illumina_clustering_error_profile),
+                        SampleKey.keyLine(row)
+                    )
+                }
             }
         }
 
     // split into the two channels we want
     def input_to_clustering = clustered_inputs_with_key.map { entry -> entry[0] }
-    def sample_key_ch       = clustered_inputs_with_key.map { entry -> entry[1] }.distinct()
 
-    // write sample rename key (old -> new) for samples that had extracted reads
-    // sample_key_ch is a channel of tuples: (oldName, newName)
-    def sample_key_lines_ch = sample_key_ch
-        .map { oldName, newName -> "${oldName}\t${newName}" }
-        .distinct()
+    // write the sample key for the samples that had extracted reads
+    def sample_key_lines_ch = clustered_inputs_with_key.map { entry -> entry[1] }
+        .unique()
         .collect()
 
-    WRITE_SAMPLE_NAME_KEY(sample_key_lines_ch, meta_info_dir.toString())
+    WRITE_AMPLICON_SAMPLE_KEY(sample_key_lines_ch, meta_info_dir.toString())
     //cluster per target per sample
     AMPLICON_CLUSTER_BY_EXPECTED_ERRORS(input_to_clustering)
 
