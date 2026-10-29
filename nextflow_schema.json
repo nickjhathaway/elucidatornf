@@ -196,6 +196,21 @@
                     "type": "integer",
                     "default": 2,
                     "description": "the cpus to use be clustering step"
+                },
+                "nanopore_bam_sample_name_from_sm": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "for unaligned .bam input (e.g. from dorado demux), name samples by the SM of the bam's read group rather than the file name"
+                },
+                "nanopore_input_recursive": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "search --input_fastq_dir recursively for .fastq(.gz)/.bam files, e.g. a directory holding several dorado demux outputs"
+                },
+                "nanopore_sample_name_prefix_top_dir": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "prefix sample names with the top directory under --input_fastq_dir, e.g. run1/.../barcode01.bam becomes run1_barcode01, to keep the same barcodes from different runs apart"
                 }
             }
         },
@@ -274,7 +289,7 @@
             "properties": {
                 "input_fastq_dir": {
                     "type": "string",
-                    "description": "a directory of fastq files for amplicon clustering"
+                    "description": "a directory of fastq files for amplicon clustering, for nanopore clustering this can also have unaligned .bam files (e.g. from dorado demux)"
                 },
                 "primers_fnp": {
                     "type": "string",

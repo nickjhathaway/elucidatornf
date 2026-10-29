@@ -15,13 +15,14 @@ include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/lo
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
 include { WRITE_SAMPLE_NAME_KEY } from "../../../modules/local/write_sample_name_key/main.nf"
+include { SCAN_RAW_INPUT_SAMPLE_NAMES } from "../../../modules/local/scan_raw_input_sample_names/main.nf"
 
 include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
 
 
 workflow NANOPORE_AMPLICON_CLUSTERING {
     take:
-    input_fastq_dir_raw //a directory with all fastqs to be analyzed
+    input_fastq_dir_raw //a directory with all fastqs (.fastq(.gz)) and/or unaligned bams (.bam, e.g. from dorado demux) to be analyzed, searched recursively with params.nanopore_input_recursive
     primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
     genome_dir_raw  // a directory with genomes
     gff_dir_raw // a directory with annotation gff files
@@ -159,16 +160,50 @@ Please correct the above issues and re-run.
     }
     GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
 
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir)
+    // given on the command line these are the string "false", which groovy would take as true
+    def input_recursive = params.nanopore_input_recursive.toString().toBoolean()
+    def prefix_with_top_dir = params.nanopore_sample_name_prefix_top_dir.toString().toBoolean()
+    def bam_sample_name_from_sm = params.nanopore_bam_sample_name_from_sm.toString().toBoolean()
 
-    fastq_input_ch = channel.fromPath("${input_fastq_dir}/*.fastq.gz")
+    // name every input file up front (only bam headers are read) so sample name collisions,
+    // e.g. the same barcode from different runs, stop the run before the long extraction step
+    SCAN_RAW_INPUT_SAMPLE_NAMES(input_fastq_dir, "nanopore", input_recursive, prefix_with_top_dir, bam_sample_name_from_sm, meta_info_dir.toString())
 
-    input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
+    // SeekDeep only looks at fastqs by default, so have it look at bams as well
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir, '.*\\.(fastq(\\.gz)?|bam)', input_recursive)
+
+    def scanned_samples_ch = SCAN_RAW_INPUT_SAMPLE_NAMES.out.sample_names
+        .splitCsv(header: true, sep: '\t')
+        .filter { row -> row.status == "ok" }
+
+    // rename key entries are matched against the scanned names, which carry the top dir prefix when it's on,
+    // so warn about entries that won't rename anything rather than silently leaving those samples as is
+    if (!rename_key.isEmpty()) {
+        scanned_samples_ch
+            .toList()
+            .subscribe { rows ->
+                def scanned_names = rows.collect { row -> row.sample } as Set
+                def unmatched = rename_key.keySet().findAll { old_name -> !scanned_names.contains(old_name) }.sort()
+                if (!unmatched.isEmpty()) {
+                    def base_name_hits = unmatched.findAll { old_name -> rows.any { row -> row.baseName == old_name } }
+                    def hint = base_name_hits.isEmpty() ? "" :
+                        ". ${base_name_hits.join(", ")} match sample names before the top directory prefix, " +
+                        "the rename key needs the prefixed names (see ${meta_info_dir}/rawInputSampleNames.tsv)"
+                    log.warn "--nanopore_rename_key_fnp entries that don't match any input sample and won't be used: ${unmatched.join(", ")}${hint}"
+                }
+            }
+    }
+
+    // file paths in the scan are relative to the input directory, ignored files (e.g. unclassified) are skipped
+    def reads_input_ch = scanned_samples_ch
+        .map { row -> tuple(file("${input_fastq_dir}/${row.file}"), row.sample) }
+
+    input_to_extractor = reads_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
-            .map{fastq_fnp, info_dir, auto_flags_fnp ->
+            .map{reads_fnp, sample_name, info_dir, auto_flags_fnp ->
                 tuple(
-                    fastq_fnp,
-                    file(fastq_fnp).name.replaceAll(".fastq.gz", ""),
+                    reads_fnp,
+                    sample_name,
                     primers_fnp,
                     file("${info_dir}/allKmers.tab.txt.gz"),
                     file("${info_dir}/lenCutOffs.txt"),

@@ -83,12 +83,30 @@ nextflow run elucidatornf/illumina_clustering.nf \
 **Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
 `--outdir`.
 
+`--input_fastq_dir` can hold `.fastq(.gz)` files and/or unaligned `.bam` files straight from
+`dorado demux`, and is searched recursively (`--nanopore_input_recursive false` to only look at the
+top level). A bam's sample is named by
+the `SM` of its read group (e.g. `barcode01`) unless `--nanopore_bam_sample_name_from_sm false` is
+given, in which case the file name is used; `unclassified` files are skipped. To combine several
+demux runs, point `--input_fastq_dir` at a directory holding each run's demux output and add
+`--nanopore_sample_name_prefix_top_dir`, so
+`sup_Pool_1_Victoria_demux/.../barcode01/*.bam` becomes `sup_Pool_1_Victoria_demux_barcode01`.
+
+The names are worked out before extraction (only bam headers are read) and written to
+`meta/rawInputSampleNames.tsv`; if two input files would get the same name the run stops there.
+To check a directory ahead of time:
+
+```bash
+SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology nanopore --recursive --prefixWithTopDir
+```
+
 **Key options** (see [`conf/params/nanopore.config`](conf/params/nanopore.config) /
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--nanopore_clustering_min_len`, `--nanopore_clustering_min_sample_read_count`,
 `--nanopore_clustering_max_reads_use`, `--nanopore_extractor_use_inner_primers`,
 `--nanopore_primers_errors_allowed`, `--nanopore_rename_key_fnp`,
-`--nanopore_render_clustering_report`.
+`--nanopore_bam_sample_name_from_sm`, `--nanopore_input_recursive`,
+`--nanopore_sample_name_prefix_top_dir`, `--nanopore_render_clustering_report`.
 
 ```bash
 nextflow run elucidatornf/nanopore_clustering.nf \
