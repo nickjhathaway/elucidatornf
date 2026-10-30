@@ -14,6 +14,7 @@ process PATHWEAVER_POP_CLUSTERING {
     output:
     path "popClustering/", emit: pop_clustering_dir
     path "popClustering/reports/allSelectedClustersInfo.tab.txt.gz", emit: all_selected_clusters_info
+    path "popClustering/reports/allSampleClustersInfo.tab.txt.gz", emit: all_sample_clusters_info
     path "popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz", emit: all_slim_selected_clusters_info
     path "reports/", emit: pop_clustering_reports_dir
     path "info/", emit: pop_clustering_info_dir
@@ -52,6 +53,7 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     output:
     path "popClustering/", emit: pop_clustering_dir
     path "popClustering/reports/allSelectedClustersInfo.tab.txt.gz", emit: all_selected_clusters_info
+    path "popClustering/reports/allSampleClustersInfo.tab.txt.gz", emit: all_sample_clusters_info
     path "popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz", emit: all_slim_selected_clusters_info
     path "reports/", emit: pop_clustering_reports_dir
     path "info/", emit: pop_clustering_info_dir

@@ -10,6 +10,7 @@ process AMPLICON_POPULATION_CLUSTERING {
 
     output:
     path "${target_name}_selectedClustersInfo.tab.txt.gz", emit: clustering_results
+    path "${target_name}_sampleClustersInfo.tab.txt.gz", emit: sample_clusters_info
 
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
@@ -33,5 +34,6 @@ process AMPLICON_POPULATION_CLUSTERING {
             \${previous_pop_arg}\
             ${extra_args}
     ln -s analysis/selectedClustersInfo.tab.txt.gz ${target_name}_selectedClustersInfo.tab.txt.gz
+    ln -s analysis/sampleClustersInfo.tab.txt.gz ${target_name}_sampleClustersInfo.tab.txt.gz
     """
 }

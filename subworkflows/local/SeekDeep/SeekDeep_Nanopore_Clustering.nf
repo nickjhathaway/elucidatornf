@@ -302,7 +302,10 @@ Please correct the above issues and re-run.
     AMPLICON_POPULATION_CLUSTERING(input_to_population_clustering)
 
     //gather all clustered results
-    CONCATENATE_AMPLICON_POPULATION_CLUSTERING(AMPLICON_POPULATION_CLUSTERING.out.clustering_results | collect, final_results_dir)
+    CONCATENATE_AMPLICON_POPULATION_CLUSTERING(
+        AMPLICON_POPULATION_CLUSTERING.out.clustering_results | collect,
+        AMPLICON_POPULATION_CLUSTERING.out.sample_clusters_info | collect,
+        final_results_dir)
 
     if (params.do_variant_calling){
 
