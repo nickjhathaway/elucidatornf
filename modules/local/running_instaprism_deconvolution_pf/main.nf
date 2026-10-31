@@ -13,6 +13,7 @@ process RUN_INSTAPRISM_DECONVOLUTION_PF {
 
     script:
     //right now code is very specific to pf malaria cell atlas data, @todo make more flexible
+    def seed_arg = params.random_seed != null ? "--seed ${params.random_seed}" : ""
     """
     running_instaprism_deconvolution_pf.R \
             --all_quants ${all_quant_fnp} \
@@ -22,7 +23,8 @@ process RUN_INSTAPRISM_DECONVOLUTION_PF {
             --output_fine pf_instaprism_fine_cell_proportions.tsv \
             --single_cell_r_object ${single_cell_r_object}\
             --use_top_diff \
-            --top_diff_gene_amount 200
+            --top_diff_gene_amount 200 \
+            ${seed_arg}
     """
 
     stub:
