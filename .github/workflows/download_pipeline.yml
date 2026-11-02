@@ -27,7 +27,7 @@ env:
 
 jobs:
   download:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest (26.04) lacks libfuse3-3, which the apptainer .deb needs
     steps:
       - name: Install Nextflow
         uses: nf-core/setup-nextflow@v2
