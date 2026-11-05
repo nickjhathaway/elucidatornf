@@ -164,10 +164,10 @@ Please correct the above issues and re-run.
     if (params.nanopore_extractor_use_inner_primers){
         def initial_primer_info_dir = file("${output_dir}/primerInfo/initialPrimerInfo")
         initial_primer_info_dir.mkdirs()
-        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
+        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
         primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
     }
-    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
 
     // given on the command line these are the string "false", which groovy would take as true
     def input_recursive = params.nanopore_input_recursive.toString().toBoolean()
@@ -180,7 +180,7 @@ Please correct the above issues and re-run.
 
     // SeekDeep only looks at fastqs by default, so have it look at bams as well
     // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir, '.*\\.(fastq(\\.gz)?|bam)', input_recursive)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir.toString(), '.*\\.(fastq(\\.gz)?|bam)', input_recursive)
 
     def scanned_samples_ch = SCAN_RAW_INPUT_SAMPLE_NAMES.out.sample_names
         .splitCsv(header: true, sep: '\t')
@@ -234,7 +234,7 @@ Please correct the above issues and re-run.
         EXTRACTOR_BY_KMER_MATCHING.out.extraction_profile_per_target | collect,
         EXTRACTOR_BY_KMER_MATCHING.out.extraction_stats | collect,
         EXTRACTOR_BY_KMER_MATCHING.out.extraction_profile_per_mid.collect().ifEmpty([]),
-        extraction_reports_dir
+        extraction_reports_dir.toString()
     )
 
     //get the targets that have coverage
@@ -305,7 +305,7 @@ Please correct the above issues and re-run.
     CONCATENATE_AMPLICON_POPULATION_CLUSTERING(
         AMPLICON_POPULATION_CLUSTERING.out.clustering_results | collect,
         AMPLICON_POPULATION_CLUSTERING.out.sample_clusters_info | collect,
-        final_results_dir)
+        final_results_dir.toString())
 
     if (params.do_variant_calling){
 
@@ -330,7 +330,7 @@ Please correct the above issues and re-run.
             meta_fnp,
             !params.vc_no_pairwise_comps,
             params.meta_fields_to_calc_pop_diffs,
-            file(variant_call_dir),
+            variant_call_dir.toString(),
             params.vc_extra_args
         )
         AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),

@@ -22,6 +22,7 @@ workflow {
   with `nextflow run <file> [params]` (pass no params to see its required flags):
 
     illumina_clustering.nf          Illumina amplicon clustering (SeekDeep)
+    illumina_read_qc.nf             Illumina amplicon read QC only (SeekDeep)
     nanopore_clustering.nf          Nanopore amplicon clustering (SeekDeep)
     pathweaver_extract_regions.nf   PathWeaver region extraction + population clustering
     wgs_preprocess_pf.nf            WGS preprocessing (P. falciparum)

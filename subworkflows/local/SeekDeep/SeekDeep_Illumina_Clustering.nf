@@ -14,6 +14,7 @@ include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/g
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
 include { WRITE_AMPLICON_SAMPLE_KEY } from "../../../modules/local/write_amplicon_sample_key/main.nf"
+include { AMPLICON_READ_QC } from "../../../modules/local/amplicon_read_qc/main.nf"
 
 include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
 
@@ -121,6 +122,10 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
         }
     }
 
+    if (params.illumina_clustering_read_qc) {
+        errors += ReadQc.validate(params, genome_dir_raw, SampleKey.load(SampleKey.keyFnp(params)))
+    }
+
     //
     // 3) Fail fast if validation failed
     //
@@ -180,10 +185,10 @@ Please correct the above issues and re-run.
     primers_fnp_ch = primers_fnp
 
 
-    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir, genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)
 
     // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir, "", false)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "", false)
     //@todo, concatenate lanes if multiple present
     fastq_input_ch = channel.fromFilePairs(
         ["${input_fastq_dir}/*_{1,2}{_001,}.fastq{.gz,}",
@@ -234,8 +239,26 @@ Please correct the above issues and re-run.
         ILLUMINA_EXTRACTOR.out.failed_primer_counts | collect,
         ILLUMINA_EXTRACTOR.out.process_pair_counts | collect,
         ILLUMINA_EXTRACTOR.out.primer_dimer_counts | collect,
-        extraction_reports_dir
+        extraction_reports_dir.toString()
     )
+
+    if (params.illumina_clustering_read_qc) {
+        def host_genome = params.illumina_read_qc_host_genome_fnp ? file(params.illumina_read_qc_host_genome_fnp) : null
+        AMPLICON_READ_QC(
+            fastq_input_ch.toSortedList { a, b -> a[0] <=> b[0] }.map { fastq_pairs -> ReadQc.samplesTuple(fastq_pairs) },
+            primers_fnp_ch,
+            GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info,
+            GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.locations_by_genome,
+            ref_seqs_dir_ch,
+            genome_dir,
+            params.illumina_read_qc_primary_genome,
+            host_genome != null ? host_genome.getParent() : file(params.empty_file_fnp),
+            host_genome != null ? host_genome.getName() : "",
+            AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags,
+            params.max_cpus,
+            "${output_dir}/readQC"
+        )
+    }
 
     //get the targets that have coverage
     def targets = GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.targets_with_extractions
@@ -318,7 +341,7 @@ Please correct the above issues and re-run.
     CONCATENATE_AMPLICON_POPULATION_CLUSTERING(
         AMPLICON_POPULATION_CLUSTERING.out.clustering_results | collect,
         AMPLICON_POPULATION_CLUSTERING.out.sample_clusters_info | collect,
-        final_results_dir)
+        final_results_dir.toString())
 
     if (params.do_variant_calling){
 
@@ -343,7 +366,7 @@ Please correct the above issues and re-run.
             meta_fnp,
             !params.vc_no_pairwise_comps,
             params.meta_fields_to_calc_pop_diffs,
-            file(variant_call_dir),
+            variant_call_dir.toString(),
             params.vc_extra_args
         )
         AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),

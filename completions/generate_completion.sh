@@ -92,6 +92,7 @@ _elucidatornf_complete() {
         base="${w##*/}"
         case "$base" in
             illumina_clustering.nf)        wf=illumina ;;
+            illumina_read_qc.nf)           wf=illumina ;;
             nanopore_clustering.nf)        wf=nanopore ;;
             pathweaver_extract_regions.nf) wf=pathweaver ;;
             wgs_preprocess_pf.nf)          wf=wgs ;;

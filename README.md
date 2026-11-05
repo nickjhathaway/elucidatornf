@@ -16,6 +16,7 @@ need directly. `main.nf` is only a helper that lists the available workflows
 | Entry script | What it does |
 | --- | --- |
 | `illumina_clustering.nf` | Illumina amplicon clustering (SeekDeep) |
+| `illumina_read_qc.nf` | Illumina amplicon read QC only, what every read pair is and where unexpected products came from |
 | `nanopore_clustering.nf` | Nanopore amplicon clustering (SeekDeep) |
 | `pathweaver_extract_regions.nf` | PathWeaver targeted region extraction + population clustering |
 | `wgs_preprocess_pf.nf` | WGS read preprocessing / host filtering (*P. falciparum*) |
@@ -105,6 +106,74 @@ primers they're made of. It includes dimers with a correctly matched primer pair
 called a `dimer` when a primer is found at both ends, or an `unresolvedDimer` when only one end has a
 primer long enough to trust and the other has shorter matches, listed under `candidatePartners`. It
 only reports, it doesn't change which reads are kept.
+
+`dimerScoreStandard`, `dimerScoreProofreading` (for polymerases that can remove unpaired 3' bases) and
+`dimerScoreWorst` (the lower of the two) are the predicted strength of the two primers annealing, more
+negative being stronger, from the same scores as `elucidator computeDimerizationScore`. An
+`unresolvedDimer` gets the lowest score of its trusted primer against each of its candidates, which
+leans lower with more candidates. The scores are blank for primers with degenerate bases, and only the
+primer sequences are scored, not any adapters on the oligos. A pair with many reads and an unremarkable
+score is worth a look, it may not be simple primer annealing.
+
+#### Read QC
+
+`SeekDeep ampliconReadQC` puts every read pair into one category and works out where the products
+that weren't expected came from. It only reports. Run it on its own with `illumina_read_qc.nf`, or add
+`--illumina_clustering_read_qc` (off by default) to `illumina_clustering.nf`.
+
+**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--outdir`,
+`--illumina_read_qc_primary_genome`. `illumina_read_qc.nf` also needs `--gff_dir` and
+`--illumina_clustering_paired_end_length` to generate the target info, unless
+`--illumina_read_qc_target_info_dir` points at the output of an earlier `genTargetInfoFromGenomes`
+(for example `primerInfo/genome_extraction` from a clustering run).
+
+**Options:** `--illumina_read_qc_host_genome_fnp`, a host fasta to place products against, with its
+`<name>_blastdb` next to it or a writable directory to make it in. `--illumina_read_qc_extra_args`
+passes anything else to `ampliconReadQC`. `--illumina_clustering_ref_seqs_dir` replaces the generated
+`refSeqs` here as well.
+
+```bash
+nextflow run elucidatornf/illumina_read_qc.nf \
+      --input_fastq_dir fastq/ \
+      --primers_fnp primers.tsv \
+      --genome_dir genomes/ \
+      --gff_dir gff/ \
+      --illumina_clustering_paired_end_length 250 \
+      --illumina_read_qc_primary_genome Pf3D7 \
+      --illumina_read_qc_host_genome_fnp GRCh38.fasta \
+      --outdir results \
+      -profile docker
+```
+
+`illumina_read_qc.nf` doesn't delete anything already in `--outdir`, so it can be pointed at a
+clustering run. `readQC/` has, per input:
+
+| File | What it has |
+|---|---|
+| `readCategoryCounts.tsv.gz` | Start here: pairs in each category, see below |
+| `placementCounts.tsv.gz` | Reads per category per placement |
+| `targetCounts.tsv.gz` | Each target by how it stitched and its category |
+| `primerDimerCounts.tsv.gz` | Dimers, the primers they're made of and those primers' dimer scores, see [Primer dimer report](#primer-dimer-report) |
+| `otherPrimerPairCounts.tsv.gz` | Pairs where the primers aren't from the same target |
+| `shortProducts.tsv.gz`, `kmerMismatchProducts.tsv.gz`, `mismatchedPrimerProducts.tsv.gz` | The sequences behind those categories with where each was placed |
+| `parametersUsed.txt` | The settings used |
+| `outSeekDeepExtractorFlags.txt` | The flags found for the extraction, also used here (`illumina_read_qc.nf` only, a clustering run has it in `extractionReports/`) |
+
+The categories are `onTarget`, `unexpectedStitch` (right primers, not stitched the way the target is
+expected to), `kmerMismatch` (right primers, doesn't match the target's `refSeqs`), `primerDimer`,
+`unresolvedDimer`, `shortProduct`, `shortOnePrimer`, `shortNoPrimer`, `mismatchedPrimers` and
+`failedPrimers`. Placements are `inPrimerTarget`, `inOtherPanelTarget`, `targetGenomeOffTarget`,
+`host`, `adapter`, `tooShort`, `unplaced` and `notBlasted`.
+
+Things to know:
+
+- Samples are named by input, the same as `extractionReports/`, not by the sample key.
+- MIDs aren't handled yet, so inputs with barcodes in the sample key stop the run with an error.
+- All samples run in one task so each unique sequence is only BLASTed once, which means adding a
+  sample reruns the whole task on `-resume`.
+- Pairs that don't stitch are placed by the first mate only.
+- A `kmerMismatch` isn't always foreign sequence: on targets that don't overlap, R2 garbled after a
+  long homopolymer can fail while R1 matches. The placement of those reads shows `inPrimerTarget`.
 
 #### Sample key: renaming, replicates and MIDs
 

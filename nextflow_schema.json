@@ -495,6 +495,29 @@
             "format": "directory-path",
             "description": "a directory of reference sequences named TARGET.fasta to use instead of the refSeqs generated from --genome_dir, used to filter extracted reads when --illumina_clustering_filter_extracted_reads is on and always used to rename population haplotypes that match them"
         },
+        "illumina_clustering_read_qc": {
+            "type": "boolean",
+            "default": false,
+            "description": "also run SeekDeep ampliconReadQC, needs --illumina_read_qc_primary_genome, written to readQC/"
+        },
+        "illumina_read_qc_primary_genome": {
+            "type": "string",
+            "description": "the primary reference genome in --genome_dir for the read QC"
+        },
+        "illumina_read_qc_host_genome_fnp": {
+            "type": "string",
+            "format": "file-path",
+            "description": "a fasta of the host genome to place products that weren't expected against in the read QC"
+        },
+        "illumina_read_qc_target_info_dir": {
+            "type": "string",
+            "format": "directory-path",
+            "description": "the output directory of an already run SeekDeep genTargetInfoFromGenomes to use in illumina_read_qc.nf instead of generating it"
+        },
+        "illumina_read_qc_extra_args": {
+            "type": "string",
+            "description": "extra arguments for SeekDeep ampliconReadQC"
+        },
         "nanopore_clustering_trim_front": {
             "type": "integer",
             "default": 1,
