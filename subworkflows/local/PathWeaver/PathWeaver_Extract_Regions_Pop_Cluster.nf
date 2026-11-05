@@ -61,7 +61,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
     regionsInfoDir = file("${results_dir}/regions/")
     regionsInfoDir.mkdirs()
 
-    GET_INTERSECTING_GENE_INFO_FOR_REGIONS(bed_ch, gff_fnp, genome_twobit_fnp, regionsInfoDir)
+    GET_INTERSECTING_GENE_INFO_FOR_REGIONS(bed_ch, gff_fnp, genome_twobit_fnp, regionsInfoDir.toString())
 
     PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER(samples_file, bams_dir, bed_ch, genome_fnp, full_results_dir, meta_fnp)
 
@@ -91,7 +91,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
             genome_fnp,
             sub_var_results_dir)
 
-        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir)
+        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir.toString())
 
         PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
         if (params.do_variant_calling){
@@ -175,7 +175,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL {
     gene_infos_dir = file("${results_dir}/geneInfos/")
     gene_infos_dir.mkdirs()
 
-    GET_GENE_RECORDS_FOR_GENE_IDS(file(gene_ids_fnp), genome_twobit_fnp, gff_fnp, gene_infos_dir)
+    GET_GENE_RECORDS_FOR_GENE_IDS(file(gene_ids_fnp), genome_twobit_fnp, gff_fnp, gene_infos_dir.toString())
     REMOVE_TANDEM_REPEATS_FROM_REGIONS(GET_GENE_RECORDS_FOR_GENE_IDS.out.out_allTranscripts_bed, genome_twobit_fnp)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, REMOVE_TANDEM_REPEATS_FROM_REGIONS.out.out_with_tandems_removed, genome_fnp, results_dir, meta_fnp)
@@ -210,7 +210,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
     DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE(
         file(seqs_table_fnp), file(genome_dir_info), file("${genome_fnp}").name,
             seqs_table_seqs_col, seqs_table_name_col, seqs_table_target_col,
-            params.max_cpus, seqsInfoDir)
+            params.max_cpus, seqsInfoDir.toString())
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE.out.targets_bed, genome_fnp, results_dir, meta_fnp)
     workflow.onComplete {
@@ -240,7 +240,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     gff_dir = file("${top_genome_info}/info/gff/")
     genome_dir = file("${genome_fnp}").getParent()
     primerInfoDir.mkdirs()
-    GEN_TARGET_INFO_FROM_GENOME(primers_fnp, primerInfoDir, genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOME(primers_fnp, primerInfoDir.toString(), genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.max_cpus)
 
 
     top_genome_info = file("${genome_fnp}").getParent().getParent()
@@ -260,8 +260,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     regionsWithPrimersInfoDir = file("${results_dir}/regionsIncludingPrimers/")
     regionsWithPrimersInfoDir.mkdirs()
 
-    GET_INTERSECTING_GENE_INFO_FOR_REGIONS(GEN_TARGET_INFO_FROM_GENOME.out.inner_bed, gff_fnp, genome_twobit_fnp, regionsInfoDir)
-    GET_INTERSECTING_GENE_INFO_FOR_REGIONS_INCLUDE_PRIMERS(GEN_TARGET_INFO_FROM_GENOME.out.amplicon_bed, gff_fnp, genome_twobit_fnp, regionsWithPrimersInfoDir)
+    GET_INTERSECTING_GENE_INFO_FOR_REGIONS(GEN_TARGET_INFO_FROM_GENOME.out.inner_bed, gff_fnp, genome_twobit_fnp, regionsInfoDir.toString())
+    GET_INTERSECTING_GENE_INFO_FOR_REGIONS_INCLUDE_PRIMERS(GEN_TARGET_INFO_FROM_GENOME.out.amplicon_bed, gff_fnp, genome_twobit_fnp, regionsWithPrimersInfoDir.toString())
 
     PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED(samples_file, bams_dir,
             GEN_TARGET_INFO_FROM_GENOME.out.amplicon_bed,
@@ -293,7 +293,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
             genome_fnp,
             sub_var_results_dir)
 
-        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir)
+        GET_INTERSECTING_GENE_INFO_FOR_REGIONS_SUBREGIONS(EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, gff_fnp, genome_twobit_fnp, sub_var_regionsInfoDir.toString())
 
         PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
         if (params.do_variant_calling){

@@ -99,11 +99,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     WAIT_FOR_ASSEMBLIES(expected_names, reports_dir)
     assemblies_root = WAIT_FOR_ASSEMBLIES.out.ready.first().map { _ready -> reports_dir }
 
-    // concatenate the results files
-    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, reports_dir.toString())
+    // concatenate the results files; publish outside rawResults since it's a `path` input
+    // here and below, so writing into it changes its mtime and busts -resume
+    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, "${results_dir}/reports/concatenatedAssemblies".toString(), file("${results_dir}").baseName, file("${samples_file}"))
 
     // run population clustering
-    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, pop_clus_dir.toString())
+    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, pop_clus_dir.toString(), file("${samples_file}"))
 
     channel.empty().set { variant_calling_reports_dir }
 
@@ -137,7 +138,7 @@ Expected at <genome_dir>/info/gff/${genome_base_name}.gff. Add the GFF for '${ge
             meta_fnp_for_variant_calling_ch,
             !params.vc_no_pairwise_comps,
             params.meta_fields_to_calc_pop_diffs,
-            file(variant_call_dir),
+            variant_call_dir.toString(),
             params.vc_extra_args
         )
         // only set this when the module actually runs
@@ -234,15 +235,16 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     WAIT_FOR_ASSEMBLIES(expected_names, reports_dir)
     assemblies_root = WAIT_FOR_ASSEMBLIES.out.ready.first().map { _ready -> reports_dir }
 
-    // concatenate the results files
-    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, reports_dir.toString())
+    // concatenate the results files; publish outside rawResults since it's a `path` input
+    // here and below, so writing into it changes its mtime and busts -resume
+    CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, "${results_dir}/reports/concatenatedAssemblies".toString(), file("${results_dir}").baseName, file("${samples_file}"))
 
     //run population clustering
     //run with full region
-    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, full_pop_clus_dir.toString())
+    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, full_pop_clus_dir.toString(), file("${samples_file}"))
     //run with inner trimmed region
     PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, trimmed_pop_clus_dir.toString(),
-                                            trim_bed_fnp_ch, genome_twobit_fnp)
+                                            trim_bed_fnp_ch, genome_twobit_fnp, file("${samples_file}"))
     channel.empty().set { variant_calling_reports_dir }
     channel.empty().set { trimmed_variant_calling_reports_dir }
     if (params.do_variant_calling){
@@ -277,7 +279,7 @@ Expected at <genome_dir>/info/gff/${genome_base_name}.gff. Add the GFF for '${ge
             meta_fnp_for_variant_calling_ch,
             false,
             params.meta_fields_to_calc_pop_diffs,
-            file(variant_call_dir),
+            variant_call_dir.toString(),
             params.vc_extra_args
         )
         VARIANT_CALL_ON_HAP_TABLE_ON_TRIMMED (
@@ -292,7 +294,7 @@ Expected at <genome_dir>/info/gff/${genome_base_name}.gff. Add the GFF for '${ge
             trimmed_meta_fnp_for_variant_calling_ch,
             !params.vc_no_pairwise_comps,
             params.meta_fields_to_calc_pop_diffs,
-            file(trimmed_variant_call_dir),
+            trimmed_variant_call_dir.toString(),
             params.vc_extra_args
         )
         // rebind emits only when present

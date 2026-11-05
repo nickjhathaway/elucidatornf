@@ -10,6 +10,7 @@ process PATHWEAVER_POP_CLUSTERING {
     path meta_fnp
     path assemblies_root
     val pub_results_dir
+    path samples_fnp, name: "pw_samples.txt"
 
     output:
     path "popClustering/", emit: pop_clustering_dir
@@ -25,7 +26,9 @@ process PATHWEAVER_POP_CLUSTERING {
     def extra_args = task.ext.args ? task.ext.args : ''
     def meta_arg = "EMPTY_FILE.txt" == "${meta_fnp}" ? "" : "--groupingsFile ${meta_fnp}"
     """
-    PathWeaver runProcessClustersOnRecon --inputDirectory ${assemblies_root} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} ${extra_args}
+    samples_arg="--samples ${samples_fnp}"
+    if [ ! -s "\$(readlink -f ${samples_fnp})" ]; then samples_arg=""; fi
+    PathWeaver runProcessClustersOnRecon --inputDirectory ${assemblies_root} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} \${samples_arg} ${extra_args}
     elucidator tableExtractCriteria --file popClustering/reports/seqsPerTargetGatheredDetailed.tab.txt --delim tab --columnName nSamples --header  --cutOff 1 | elucidator printCol --file STDIN --delim tab --header --columnName target > popClustering/reports/targets_with_results.txt
     elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::library_sample_name,p_name::target_name,h_popUID::microhaplotype_name,h_Consensus::seq,c_ReadCnt::reads --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports
@@ -49,6 +52,7 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     val pub_results_dir
     path trim_bed
     path genome_2bit_fnp
+    path samples_fnp, name: "pw_samples.txt"
 
     output:
     path "popClustering/", emit: pop_clustering_dir
@@ -65,7 +69,9 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     def extra_args = task.ext.args ? task.ext.args : ''
 
     """
-    PathWeaver runProcessClustersOnRecon --inputDirectory ${assemblies_root} --genome2bit ${genome_2bit_fnp} --trimBedFnp ${trim_bed} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} ${extra_args}
+    samples_arg="--samples ${samples_fnp}"
+    if [ ! -s "\$(readlink -f ${samples_fnp})" ]; then samples_arg=""; fi
+    PathWeaver runProcessClustersOnRecon --inputDirectory ${assemblies_root} --genome2bit ${genome_2bit_fnp} --trimBedFnp ${trim_bed} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} \${samples_arg} ${extra_args}
     elucidator tableExtractCriteria --file popClustering/reports/seqsPerTargetGatheredDetailed.tab.txt --delim tab --columnName nSamples --header  --cutOff 1 | elucidator printCol --file STDIN --delim tab --header --columnName target > popClustering/reports/targets_with_results.txt
     elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::library_sample_name,p_name::target_name,h_popUID::microhaplotype_name,h_Consensus::seq,c_ReadCnt::reads --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports

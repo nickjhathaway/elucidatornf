@@ -14,6 +14,7 @@ process ILLUMINA_EXTRACTOR {
     path "${sample_name}_extractionStats.tab.txt", emit: extraction_stats
     path "${sample_name}_allFailedPrimerCounts.tab.txt", emit: failed_primer_counts
     path "${sample_name}_processPairsCounts.tab.txt", emit: process_pair_counts
+    path "${sample_name}_primerDimerCounts.tab.txt", emit: primer_dimer_counts
 
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
@@ -35,6 +36,7 @@ process ILLUMINA_EXTRACTOR {
     ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt
     ln -s extraction/allFailedPrimerCounts.tab.txt ${sample_name}_allFailedPrimerCounts.tab.txt
     ln -s extraction/processPairsCounts.tab.txt ${sample_name}_processPairsCounts.tab.txt
+    ln -s extraction/primerDimerCounts.tab.txt ${sample_name}_primerDimerCounts.tab.txt
 
     """
 }

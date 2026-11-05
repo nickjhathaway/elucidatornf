@@ -97,6 +97,15 @@ looks for `<target>-R1.fasta` and `<target>-R2.fasta` to rename those. The gener
 these, with R2 in the direction it's sequenced, and a custom directory can too. The filter only reads
 `<target>.fasta`.
 
+#### Primer dimer report
+
+`extractionReports/allPrimerDimerCounts.tsv.gz` counts the primer dimers found per sample and which
+primers they're made of. It includes dimers with a correctly matched primer pair, which
+`allFailedPrimerCounts.tsv.gz` doesn't cover. Read pairs short enough to read through each other are
+called a `dimer` when a primer is found at both ends, or an `unresolvedDimer` when only one end has a
+primer long enough to trust and the other has shorter matches, listed under `candidatePartners`. It
+only reports, it doesn't change which reads are kept.
+
 #### Sample key: renaming, replicates and MIDs
 
 `--amplicon_sample_key_fnp` (Illumina and nanopore) takes a tab delimited file with a header, one

@@ -141,7 +141,7 @@
                 },
                 "pw_samples_file": {
                     "type": "string",
-                    "description": "a no header file with each line being a sample name"
+                    "description": "a no header file with each line being a sample name; only these samples are extracted, concatenated and population clustered, otherwise every bam is extracted and everything in the output's rawResults is used"
                 },
                 "pw_bed_fnp": {
                     "type": "string",

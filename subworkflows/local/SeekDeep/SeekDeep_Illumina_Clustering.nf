@@ -233,6 +233,7 @@ Please correct the above issues and re-run.
         ILLUMINA_EXTRACTOR.out.extraction_stats | collect,
         ILLUMINA_EXTRACTOR.out.failed_primer_counts | collect,
         ILLUMINA_EXTRACTOR.out.process_pair_counts | collect,
+        ILLUMINA_EXTRACTOR.out.primer_dimer_counts | collect,
         extraction_reports_dir
     )
 

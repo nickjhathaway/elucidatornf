@@ -6,6 +6,8 @@ process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
     input:
     path assemblies_root
     val pub_results_dir
+    val dirstub
+    path samples_fnp, name: "pw_samples.txt"
 
     output:
     path "allBasicInfo.tsv.gz", emit: all_basic_info
@@ -22,7 +24,12 @@ process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
     # bind-mounts this one dir into containers automatically. printf is a bash
     # builtin, so the glob is expanded in-shell (no ARG_MAX issue).
     shopt -s nullglob
-    printf '%s\\n' ${assemblies_root}/*/ | sed 's#/\$##' > dirs.txt
+    if [ -s "\$(readlink -f ${samples_fnp})" ]; then
+        # only the requested samples, not everything accumulated in assemblies_root
+        awk 'NF { print "${assemblies_root}/" \$1 "_${dirstub}" }' ${samples_fnp} > dirs.txt
+    else
+        printf '%s\\n' ${assemblies_root}/*/ | sed 's#/\$##' > dirs.txt
+    fi
 
     # Build the per-type file manifests (one path per line).
     sed 's#\$#/final/basicInfoPerRegion.tab.txt#' dirs.txt > allBasicInfoFiles.txt
