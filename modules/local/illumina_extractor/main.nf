@@ -4,7 +4,7 @@ process ILLUMINA_EXTRACTOR {
 
 
     input:
-    tuple path(fastq1_fnp), path(fastq2_fnp), val(sample_name), path(primers_fnp), path(overlap_status_fnp), path(length_cut_offs_per_target), path(auto_flags_fnp)
+    tuple path(fastq1_fnp), path(fastq2_fnp), val(sample_name), path(primers_fnp), path(overlap_status_fnp), path(length_cut_offs_per_target), path(auto_flags_fnp), path(ref_seqs_dir, name: 'extraction_ref_seqs'), val(filter_extracted_reads)
 
     output:
     tuple val(sample_name), path("extraction/*.fastq.gz"), emit: fastqs_per_target, optional : true
@@ -17,6 +17,7 @@ process ILLUMINA_EXTRACTOR {
 
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
+    def compare_seq_arg = filter_extracted_reads ? "--compareSeq ${ref_seqs_dir}" : ''
 
     """
     SeekDeep extractorPairedEnd \
@@ -28,6 +29,7 @@ process ILLUMINA_EXTRACTOR {
             --id ${primers_fnp} \
             --sampleName ${sample_name} \
             --lenCutOffs ${length_cut_offs_per_target} \
+            ${compare_seq_arg} \
             ${extra_args} \$(cat ${auto_flags_fnp})
     ln -s extraction/extractionProfile.tab.txt ${sample_name}_extractionProfile.tab.txt
     ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt

@@ -65,7 +65,8 @@ The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` share an option
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--illumina_clustering_min_sample_read_count`, `--illumina_clustering_trim_front`,
 `--illumina_clustering_trim_back`, `--illumina_clustering_population_ncpus`,
-`--amplicon_clustering_pop_clustering_extra_args`, `--amplicon_sample_key_fnp`.
+`--amplicon_clustering_pop_clustering_extra_args`, `--amplicon_sample_key_fnp`,
+`--illumina_clustering_filter_extracted_reads`, `--illumina_clustering_ref_seqs_dir`.
 
 ```bash
 nextflow run elucidatornf/illumina_clustering.nf \
@@ -77,6 +78,24 @@ nextflow run elucidatornf/illumina_clustering.nf \
       --outdir analysis_illumina \
       -profile <docker/singularity/apptainer/.../institute>
 ```
+
+#### Filtering extracted reads against reference sequences
+
+`--illumina_clustering_filter_extracted_reads` (off by default) removes extracted reads that don't
+share enough kmers with the reference sequences of their target, which takes out host reads and
+primer dimers that carry the right primers. The removed reads are counted under
+`possibleContamination` in `extractionReports/`. For targets that don't overlap, both mates have to
+match. By default the references are the `refSeqs` generated from `--genome_dir`.
+
+`--illumina_clustering_ref_seqs_dir` replaces those `refSeqs` with your own directory of
+`<target>.fasta` files. It's used for this filter when the filter is on and is always used by
+population clustering, which renames population haplotypes that match a reference to that reference's
+name. A target with no file isn't filtered or renamed (a warning lists them).
+
+Targets that don't overlap are clustered as `<target>-R1` and `<target>-R2`, so population clustering
+looks for `<target>-R1.fasta` and `<target>-R2.fasta` to rename those. The generated `refSeqs` include
+these, with R2 in the direction it's sequenced, and a custom directory can too. The filter only reads
+`<target>.fasta`.
 
 #### Sample key: renaming, replicates and MIDs
 

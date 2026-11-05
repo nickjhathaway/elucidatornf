@@ -84,6 +84,26 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
     }
 
     //
+    // 2a) A custom reference directory replaces the generated refSeqs for both filtering
+    // the extracted reads and renaming the population haplotypes. A target missing from it
+    // is neither filtered nor renamed so warn about that rather than leaving it to be noticed
+    //
+    def custom_ref_seqs_dir = params.illumina_clustering_ref_seqs_dir ? file(params.illumina_clustering_ref_seqs_dir) : null
+    if (custom_ref_seqs_dir != null) {
+        if (!custom_ref_seqs_dir.exists()) {
+            errors << "Path does not exist for --illumina_clustering_ref_seqs_dir: '${custom_ref_seqs_dir}'"
+        } else if (!custom_ref_seqs_dir.isDirectory()) {
+            errors << "Expected a directory for --illumina_clustering_ref_seqs_dir but found a file: '${custom_ref_seqs_dir}'"
+        } else if (primers_fnp.isFile()) {
+            def primer_targets = primers_fnp.readLines().drop(1).findAll { line -> line.trim() }.collect { line -> line.trim().split(/\s+/)[0] }
+            def missing_ref_seqs = primer_targets.findAll { tar -> !file("${custom_ref_seqs_dir}/${tar}.fasta").exists() }
+            if (missing_ref_seqs) {
+                log.warn "--illumina_clustering_ref_seqs_dir has no <target>.fasta for these targets so they won't be filtered or renamed: ${missing_ref_seqs.join(", ")}"
+            }
+        }
+    }
+
+    //
     // 2b) Variant calling requires a primary genome. If it is left unset the
     // default value (false) is interpolated into the file names, so the
     // workflow tries to load "false.gff" / "false_inner.bed" and fails with a
@@ -177,9 +197,16 @@ Please correct the above issues and re-run.
             }
         }
     }
+    // the reference sequences for filtering the extracted reads and renaming the population haplotypes
+    def ref_seqs_dir_ch = custom_ref_seqs_dir != null ?
+        channel.value(custom_ref_seqs_dir) :
+        GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info.map{ seek_deep_info_dir ->
+            file("${seek_deep_info_dir}/refSeqs")}
+
     input_to_extractor = fastq_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
-            .map{sample_id, reads, info_dir, auto_flags_fnp ->
+            .combine(ref_seqs_dir_ch)
+            .map{sample_id, reads, info_dir, auto_flags_fnp, ref_seqs_dir ->
                 // an input left out of the key is a sample named after itself, which can't also be a keyed name
                 if (!sample_key.containsKey(sample_id) && keyed_names.contains(sample_id)) {
                     error "input ${sample_id} isn't in the sample key but is the name of a sample or replicate in it, add it to the key"
@@ -192,6 +219,8 @@ Please correct the above issues and re-run.
                     file("${info_dir}/overlapStatuses.txt"),
                     file("${info_dir}/lenCutOffs.txt"),
                     auto_flags_fnp,
+                    ref_seqs_dir,
+                    params.illumina_clustering_filter_extracted_reads,
                 )
             }
 
@@ -265,8 +294,6 @@ Please correct the above issues and re-run.
     // // log.info "fastq_count is ${fastq_count}"
     // // Get the count of fastq files
     // // def fastq_count = fastq_files.size()
-    def ref_seqs_dir_ch = GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA.out.for_seek_deep_info.map{ seek_deep_info_dir ->
-            file("${seek_deep_info_dir}/refSeqs")}
     def input_to_population_clustering = AMPLICON_CLUSTER_BY_EXPECTED_ERRORS.out.output_results
         //.groupTuple(by : 1, size: fastq_input_ch.count())
         // .groupTuple(by : 1, size: fastq_count)

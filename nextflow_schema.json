@@ -485,6 +485,16 @@
             "default": 1,
             "description": "the trimming of the back after removing primers (a base with a common source of artifact)"
         },
+        "illumina_clustering_filter_extracted_reads": {
+            "type": "boolean",
+            "default": false,
+            "description": "remove extracted reads that don't share enough kmers with the reference sequences of their target (off target amplification, host and primer dimers), uses the refSeqs generated from --genome_dir or --illumina_clustering_ref_seqs_dir if given"
+        },
+        "illumina_clustering_ref_seqs_dir": {
+            "type": "string",
+            "format": "directory-path",
+            "description": "a directory of reference sequences named TARGET.fasta to use instead of the refSeqs generated from --genome_dir, used to filter extracted reads when --illumina_clustering_filter_extracted_reads is on and always used to rename population haplotypes that match them"
+        },
         "nanopore_clustering_trim_front": {
             "type": "integer",
             "default": 1,
