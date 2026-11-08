@@ -465,6 +465,12 @@
             "default": "illumina",
             "description": "the profile to use for clsutering"
         },
+        "pmo_panel_name": {
+            "type": "string",
+            "default": "amplicon_panel",
+            "description": "the panel name to use in the exported PMO",
+            "pattern": "^[A-Za-z0-9-._]+$"
+        },
         "illumina_clustering_min_sample_read_count": {
             "type": "integer",
             "default": 50,

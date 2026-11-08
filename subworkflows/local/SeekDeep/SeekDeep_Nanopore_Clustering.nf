@@ -12,6 +12,7 @@ include { CONCATENATE_EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/
 include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amplicon_cluster_by_kmer_similarity/main.nf'
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
+include { MERGE_AMPLICON_PMOS } from '../../../modules/local/merge_amplicon_pmos/main.nf'
 include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
 include { WRITE_AMPLICON_SAMPLE_KEY } from "../../../modules/local/write_amplicon_sample_key/main.nf"
@@ -295,7 +296,9 @@ Please correct the above issues and re-run.
                     meta_fnp,
                     // GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info,
                     ref_seqs_dir,
-                    params.nanopore_clustering_min_sample_read_count
+                    params.nanopore_clustering_min_sample_read_count,
+                    primers_fnp,
+                    params.pmo_panel_name
                 )
         }
     // population clustering
@@ -305,6 +308,12 @@ Please correct the above issues and re-run.
     CONCATENATE_AMPLICON_POPULATION_CLUSTERING(
         AMPLICON_POPULATION_CLUSTERING.out.clustering_results | collect,
         AMPLICON_POPULATION_CLUSTERING.out.sample_clusters_info | collect,
+        final_results_dir.toString())
+
+    //one PMO for all the targets with the sample meta
+    MERGE_AMPLICON_PMOS(
+        AMPLICON_POPULATION_CLUSTERING.out.pmo | collect,
+        meta_fnp,
         final_results_dir.toString())
 
     if (params.do_variant_calling){

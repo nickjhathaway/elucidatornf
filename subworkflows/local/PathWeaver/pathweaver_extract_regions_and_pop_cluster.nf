@@ -34,6 +34,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     // get possible genome
     top_genome_info = file("${genome_fnp}").getParent().getParent()
     genome_base_name = file("${genome_fnp}").getBaseName()
+    genome_twobit_fnp = file("${file("${genome_fnp}").getParent()}/${genome_base_name}.2bit")
     gff_fnp = file("${top_genome_info}/info/gff/${genome_base_name}.gff")
     known_amino_acid_changes_fnp = params.empty_file_fnp
     if(file("${top_genome_info}/info/drug_resistant_aaPositions.tsv").exists()){
@@ -104,7 +105,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER {
     CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS(assemblies_root, "${results_dir}/reports/concatenatedAssemblies".toString(), file("${results_dir}").baseName, file("${samples_file}"))
 
     // run population clustering
-    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, pop_clus_dir.toString(), file("${samples_file}"))
+    PATHWEAVER_POP_CLUSTERING(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, pop_clus_dir.toString(), file("${samples_file}"), file(params.primers_fnp ?: params.empty_file_fnp), genome_twobit_fnp)
 
     channel.empty().set { variant_calling_reports_dir }
 
@@ -241,10 +242,10 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
 
     //run population clustering
     //run with full region
-    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, full_pop_clus_dir.toString(), file("${samples_file}"))
+    PATHWEAVER_POP_CLUSTERING(              file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, full_pop_clus_dir.toString(), file("${samples_file}"), file(params.primers_fnp ?: params.empty_file_fnp), genome_twobit_fnp)
     //run with inner trimmed region
     PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, trimmed_pop_clus_dir.toString(),
-                                            trim_bed_fnp_ch, genome_twobit_fnp, file("${samples_file}"))
+                                            trim_bed_fnp_ch, genome_twobit_fnp, file("${samples_file}"), file(params.primers_fnp ?: params.empty_file_fnp))
     channel.empty().set { variant_calling_reports_dir }
     channel.empty().set { trimmed_variant_calling_reports_dir }
     if (params.do_variant_calling){
