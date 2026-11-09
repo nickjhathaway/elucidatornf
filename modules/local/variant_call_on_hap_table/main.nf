@@ -14,6 +14,8 @@ process VARIANT_CALL_ON_HAP_TABLE {
     val variant_frequency_cut_off
     val variant_occurrence_cut_off
     path meta_fnp, name: "meta.tsv"
+    // the population clustering PMO, the variant calls are added to it, an empty file for none
+    path pmo_fnp, name: "input_PMO.json.gz"
     val getting_pairwise_comps
     val meta_fields_to_calc_pop_diffs
     val pub_results_dir
@@ -21,6 +23,7 @@ process VARIANT_CALL_ON_HAP_TABLE {
 
     output:
     path "reports", emit: reports
+    path "reports/allPMO.json.gz", emit: pmo, optional: true
     // path "variantCalls/runLog*", emit: run_log
 
 
@@ -34,8 +37,10 @@ process VARIANT_CALL_ON_HAP_TABLE {
     """
     meta_arg="--metaFnp ${meta_fnp}"
     known_amino_acid_changes_arg="--knownAminoAcidChangesFnp ${known_amino_acid_changes_fnp}"
+    pmo_arg="--pmo input_PMO.json.gz"
     if [ ! -s "\$(readlink -f ${meta_fnp})" ]; then meta_arg=""; fi
     if [ ! -s "\$(readlink -f ${known_amino_acid_changes_fnp})" ]; then known_amino_acid_changes_arg=""; fi
+    if [ ! -s "\$(readlink -f input_PMO.json.gz)" ]; then pmo_arg=""; fi
 
     # only variant call on the regions supplied by the bed file
     cut -f4 ${bedfile_fnp} > regions.txt
@@ -55,6 +60,7 @@ process VARIANT_CALL_ON_HAP_TABLE {
         --dout variantCalls \
         --numThreads ${params.variant_calling_ncpus} \
         \${meta_arg} \
+        \${pmo_arg} \
         --exportLabIsolateSeqs \
         ${getting_pairwise_comps_arg} \
         ${meta_fields_to_calc_pop_diffs_arg}\

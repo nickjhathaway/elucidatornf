@@ -260,7 +260,7 @@
                 },
                 "vc_extra_args": {
                     "type": "string",
-                    "description": "extra arguments to give to variant calling"
+                    "description": "extra arguments for making the variant calling reports across targets (SeekDeep variantCallOnSeqAndProtein --perTargetVariantCallsDir), per target calling happens in population clustering"
                 }
             }
         },

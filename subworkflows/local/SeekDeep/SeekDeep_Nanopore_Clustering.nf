@@ -7,7 +7,8 @@ nextflow.enable.dsl = 2
 include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE as GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL } from '../../../modules/local/gen_target_info_from_genomes'
 include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE } from '../../../modules/local/gen_target_info_from_genomes'
 include { EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/extractor_by_kmer_matching'
-include { VARIANT_CALL_ON_HAP_TABLE } from '../../../modules/local/variant_call_on_hap_table/main.nf'
+include { COMBINE_VARIANT_CALLS } from '../../../modules/local/combine_variant_calls/main.nf'
+include { popClusteringVariantCallArgs; noPopClusteringVariantCalls } from '../variant_call_setup.nf'
 include { CONCATENATE_EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/concatenate_extractor_by_kmer_matching/main.nf'
 include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amplicon_cluster_by_kmer_similarity/main.nf'
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
@@ -302,7 +303,20 @@ Please correct the above issues and re-run.
                 )
         }
     // population clustering
-    AMPLICON_POPULATION_CLUSTERING(input_to_population_clustering)
+    // population clustering calls variants on the final haplotypes when variant calling is on
+    def vc_known_amino_acid_changes_fnp = params.empty_file_fnp
+    if(file("${genome_dir.getParent()}/info/drug_resistant_aaPositions.tsv").exists()){
+        vc_known_amino_acid_changes_fnp = file("${genome_dir.getParent()}/info/drug_resistant_aaPositions.tsv")
+    }
+    def vc_bed_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome.map{loc_dir ->
+            file("${loc_dir}/${params.vc_primary_genome}_inner.bed")}
+    def vc_setup_ch = noPopClusteringVariantCalls()
+    if (params.do_variant_calling) {
+        def vc_args = popClusteringVariantCallArgs(!params.vc_no_pairwise_comps)
+        vc_setup_ch = vc_bed_ch.map{ bed ->
+            tuple(genome_dir, params.vc_primary_genome, file("${gff_dir}/${params.vc_primary_genome}.gff"), file(vc_known_amino_acid_changes_fnp), bed, vc_args)}.first()
+    }
+    AMPLICON_POPULATION_CLUSTERING(input_to_population_clustering, vc_setup_ch)
 
     //gather all clustered results
     CONCATENATE_AMPLICON_POPULATION_CLUSTERING(
@@ -319,33 +333,28 @@ Please correct the above issues and re-run.
     if (params.do_variant_calling){
 
         def variant_call_dir = file("${final_results_dir}/variantCalls")
-        def known_amino_acid_changes_fnp = params.empty_file_fnp
-        genome_dir_top = genome_dir.getParent()
-        if(file("${genome_dir_top}/info/drug_resistant_aaPositions.tsv").exists()){
-            known_amino_acid_changes_fnp = file("${genome_dir_top}/info/drug_resistant_aaPositions.tsv")
-        }
-        def bed_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome.map{loc_dir ->
-                file("${loc_dir}/${params.vc_primary_genome}_inner.bed")}
 
-        VARIANT_CALL_ON_HAP_TABLE (
-            bed_ch,
+        //the reports across targets from the calls population clustering made
+        COMBINE_VARIANT_CALLS (
+            vc_bed_ch,
             CONCATENATE_AMPLICON_POPULATION_CLUSTERING.out.all_selected_clusters_info,
             genome_dir,
             params.vc_primary_genome,
             file("${gff_dir}/${params.vc_primary_genome}.gff"),
-            file(known_amino_acid_changes_fnp),
+            file(vc_known_amino_acid_changes_fnp),
             params.vc_variant_frequency_cut_off,
             params.vc_variant_occurrence_cut_off,
             meta_fnp,
-            !params.vc_no_pairwise_comps,
-            params.meta_fields_to_calc_pop_diffs,
+            AMPLICON_POPULATION_CLUSTERING.out.variant_calls | collect,
+            "",
+            "",
             variant_call_dir.toString(),
             params.vc_extra_args
         )
         AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),
             file("${projectDir}/etc/nanopore_clustering_report.qmd"),
             params.nanopore_render_clustering_report,
-            VARIANT_CALL_ON_HAP_TABLE.out.reports,
+            COMBINE_VARIANT_CALLS.out.reports,
             CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
         )
     } else {

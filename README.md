@@ -56,6 +56,11 @@ The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` share an option
 - `--vc_primary_genome <name>`, `--meta_fnp <tsv>`, `--variant_calling_ncpus <n>`,
   `--vc_variant_frequency_cut_off`, `--vc_variant_occurrence_cut_off`,
   `--meta_fields_to_calc_pop_diffs`, `--vc_extra_args "..."`.
+- Variants are called per target inside population clustering (`processClusters`,
+  PathWeaver `runProcessClustersOnRecon`), so the population clustering PMO has each
+  haplotype's variant calls, and `COMBINE_VARIANT_CALLS` makes the reports across targets
+  (`variantCalls/reports`) from those calls. `--vc_extra_args` goes to that reports step,
+  `--variant_calling_ncpus` is its threads.
 
 ### Illumina amplicon clustering — `illumina_clustering.nf`
 
