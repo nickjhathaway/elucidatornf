@@ -67,7 +67,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
 
     if (params.do_variant_calling){
         //copy over dashboard quarto document
-        PW_CREATE_DASHBOARDS(file("${results_dir}"),
+        PW_CREATE_DASHBOARDS(file("${results_dir}").toString(),
             file("${projectDir}/etc/pw_basic_report.qmd"),
             params.render_pw_report,
             PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER.out.pop_clustering_res_targets_with_results,
@@ -96,7 +96,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_BED {
         PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
         if (params.do_variant_calling){
             //copy over dashboard quarto document
-            PW_CREATE_DASHBOARDS_SUBREGIONS(sub_var_results_dir,
+            PW_CREATE_DASHBOARDS_SUBREGIONS(sub_var_results_dir.toString(),
                 file("${projectDir}/etc/pw_basic_report.qmd"),
                 params.render_pw_report,
                 PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS.out.pop_clustering_res_targets_with_results,
@@ -266,11 +266,12 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED(samples_file, bams_dir,
             GEN_TARGET_INFO_FROM_GENOME.out.amplicon_bed,
             GEN_TARGET_INFO_FROM_GENOME.out.inner_bed,
-            genome_fnp, full_results_dir, meta_fnp)
+            genome_fnp, full_results_dir, meta_fnp,
+            GEN_TARGET_INFO_FROM_GENOME.out.for_seek_deep_info.map { dir -> file("${dir}/refSeqs") })
 
     if (params.do_variant_calling){
         //copy over dashboard quarto document
-        PW_CREATE_DASHBOARDS(file("${results_dir}"),  file("${projectDir}/etc/pw_basic_report.qmd"),
+        PW_CREATE_DASHBOARDS(file("${results_dir}").toString(),  file("${projectDir}/etc/pw_basic_report.qmd"),
             params.render_pw_report,
             PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED.out.trimmed_pop_clustering_res_targets_with_results,
             GET_INTERSECTING_GENE_INFO_FOR_REGIONS.out.bed_withGeneInfo_tsv,
@@ -298,7 +299,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
         PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS(samples_file, bams_dir, EXTRACT_VARIABLE_SUBREGIONS_FROM_PATHWEAVER_ASSEMBLIES.out.variable_expanded_regions, genome_fnp, sub_var_full_results_dir, meta_fnp)
         if (params.do_variant_calling){
             //copy over dashboard quarto document
-            PW_CREATE_DASHBOARDS_SUBREGIONS(sub_var_results_dir,
+            PW_CREATE_DASHBOARDS_SUBREGIONS(sub_var_results_dir.toString(),
                 file("${projectDir}/etc/pw_basic_report.qmd"),
                 params.render_pw_report,
                 PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_SUBREGIONS.out.pop_clustering_res_targets_with_results,

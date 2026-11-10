@@ -52,7 +52,7 @@ process COMBINE_VARIANT_CALLS {
         --variantOccurrenceCutOff ${variant_occurrence_cut_off} \
         --ignoreSubFields site:LabCross,site:LabControl,site:LabContaminated \
         --dout variantCalls \
-        --numThreads ${params.variant_calling_ncpus} \
+        --numThreads ${task.cpus} \
         \${meta_arg} \
         --exportLabIsolateSeqs \
         --perTargetVariantCallsDir ${per_target_dir} ${per_target_sub_dir_arg} \

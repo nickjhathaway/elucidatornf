@@ -98,8 +98,7 @@ process GEN_TARGET_INFO_FROM_GENOME_NANOPORE {
             --dout genome_extraction \
             --errors ${errors_allowed} \
             --numThreads ${ncpus} \
-            --useBlast \
-            --selectedGenomes ${primary_genome}
+            --useBlast
     elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
             --delim tab \
             --columnName extractionCounts \

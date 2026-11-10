@@ -3,7 +3,7 @@ process PW_CREATE_DASHBOARDS {
 
 
     input:
-    path outdir
+    val outdir // the output directory as a string, as a path its modified time ends up in the hash and publishing changes that
     path basic_reports_qmd
     val render_report
     path pop_clustering_res_targets_with_results
@@ -17,13 +17,13 @@ process PW_CREATE_DASHBOARDS {
 
     if (render_report){
         """
-        cp ${basic_reports_qmd} ${outdir}/
-        cd ${outdir}
+        cp ${basic_reports_qmd} "${outdir}/"
+        cd "${outdir}"
         quarto render ${basic_reports_qmd} --no-cache
         """
     } else {
         """
-        cp ${basic_reports_qmd} ${outdir}/
+        cp ${basic_reports_qmd} "${outdir}/"
         """
     }
 }

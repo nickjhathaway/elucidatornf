@@ -351,14 +351,14 @@ Please correct the above issues and re-run.
             variant_call_dir.toString(),
             params.vc_extra_args
         )
-        AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),
+        AMPLICON_CREATE_DASHBOARDS(file("${output_dir}").toString(),
             file("${projectDir}/etc/nanopore_clustering_report.qmd"),
             params.nanopore_render_clustering_report,
             COMBINE_VARIANT_CALLS.out.reports,
             CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
         )
     } else {
-        AMPLICON_CREATE_DASHBOARDS(file("${output_dir}"),
+        AMPLICON_CREATE_DASHBOARDS(file("${output_dir}").toString(),
             file("${projectDir}/etc/nanopore_clustering_report.qmd"),
             params.nanopore_render_clustering_report,
             CONCATENATE_AMPLICON_POPULATION_CLUSTERING.out.all_selected_clusters_info,

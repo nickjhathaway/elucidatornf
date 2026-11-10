@@ -69,6 +69,8 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
     path primers_fnp, name: "pmo_primers.tsv"
     // variant calling on the final haplotypes, the same as VARIANT_CALL_ON_HAP_TABLE, an empty file for the genome dir turns it off
     tuple path(vc_genome_dir), val(vc_primary_genome), path(vc_gff_fnp, name: 'vc_genome.gff'), path(vc_known_amino_acid_changes_fnp, name: 'vc_known_amino_acid_changes.tsv'), path(vc_bed_fnp, name: 'vc_genomic_locations.bed'), val(vc_args)
+    // reference sequences for each trimmed target, <target>.fasta, haplotypes matching them are named after them, an empty file turns this off
+    path previous_pop_dir, name: "previousPopSeqs"
 
     output:
     path "popClustering/", emit: pop_clustering_dir
@@ -96,7 +98,9 @@ process PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED {
         variant_call_args="--genome ${vc_genome_dir}/${vc_primary_genome}.fasta --gff vc_genome.gff --genomicLocations vc_genomic_locations.bed ${vc_args}"
         if [ -s "\$(readlink -f vc_known_amino_acid_changes.tsv)" ]; then variant_call_args="\${variant_call_args} --knownAminoAcidChangesFnp vc_known_amino_acid_changes.tsv"; fi
     fi
-    PathWeaver runProcessClustersOnRecon --writePMO \${primers_arg} --pmoPanelName ${params.pmo_panel_name} --inputDirectory ${assemblies_root} --genome2bit ${genome_2bit_fnp} --trimBedFnp ${trim_bed} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} \${samples_arg} \${variant_call_args} ${extra_args}
+    previous_pop_arg=""
+    if [ -d previousPopSeqs ]; then previous_pop_arg="--previousPopDir previousPopSeqs --previousPop-largeBaseIndel 0.99 --previousPop-oneBaseIndel 0.99 --previousPop-twoBaseIndel 0.99"; fi
+    PathWeaver runProcessClustersOnRecon --writePMO \${primers_arg} --pmoPanelName ${params.pmo_panel_name} --inputDirectory ${assemblies_root} --genome2bit ${genome_2bit_fnp} --trimBedFnp ${trim_bed} \${previous_pop_arg} --overWriteDir --dout popClustering --pat _${dirstub} --numThreads ${params.pw_pop_clustering_ncpus} ${meta_arg} \${samples_arg} \${variant_call_args} ${extra_args}
     elucidator tableExtractCriteria --file popClustering/reports/seqsPerTargetGatheredDetailed.tab.txt --delim tab --columnName nSamples --header  --cutOff 1 | elucidator printCol --file STDIN --delim tab --header --columnName target > popClustering/reports/targets_with_results.txt
     elucidator tableExtractColumns --file popClustering/reports/allSelectedClustersInfo.tab.txt.gz --columns s_Sample::library_sample_name,p_name::target_name,h_popUID::microhaplotype_name,h_Consensus::seq,c_ReadCnt::reads --delim tab --header --out popClustering/reports/slim_allSelectedClustersInfo.tab.txt.gz
     ln -s popClustering/reports

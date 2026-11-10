@@ -176,6 +176,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     genome_fnp // Path to the genome file
     results_dir // Directory to store results
     meta_fnp //meta file
+    previous_pop_dir_ch // reference sequences for each trimmed target, <target>.fasta, haplotypes matching them are named after them, an empty file turns this off
 
     main:
 
@@ -260,7 +261,8 @@ workflow PATHWEAVER_EXTRACT_REGIONS_AND_POP_CLUSTER_WITH_TRIM_BED {
     //run with inner trimmed region
     PATHWEAVER_POP_CLUSTERING_WITH_TRIM_BED(file("${results_dir}").baseName, file("${meta_fnp}"), assemblies_root, trimmed_pop_clus_dir.toString(),
                                             trim_bed_fnp_ch, genome_twobit_fnp, file("${samples_file}"), file(params.primers_fnp ?: params.empty_file_fnp),
-                                            variantCallSetup(trim_bed_fnp_ch, genome_fnp, gff_fnp, known_amino_acid_changes_fnp, !params.vc_no_pairwise_comps))
+                                            variantCallSetup(trim_bed_fnp_ch, genome_fnp, gff_fnp, known_amino_acid_changes_fnp, !params.vc_no_pairwise_comps),
+                                            previous_pop_dir_ch)
     channel.empty().set { variant_calling_reports_dir }
     channel.empty().set { trimmed_variant_calling_reports_dir }
     if (params.do_variant_calling){

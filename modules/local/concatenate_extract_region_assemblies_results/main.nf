@@ -36,7 +36,7 @@ process CONCATENATE_EXTRACT_REGION_ASSEMBLIES_RESULTS {
     sed 's#\$#/final/allFinal.fasta#'             dirs.txt > allFinalFastaFnps.txt
     sed 's#\$#/partial/allPartial.fasta#'         dirs.txt > allPartialFastaFnps.txt
 
-    elucidator rBind --files allBasicInfoFiles.txt --delim tab --header --overWrite --out allBasicInfo.tsv.gz
+    elucidator rBind --files allBasicInfoFiles.txt --delim tab --header --overWrite --out allBasicInfo.tsv.gz --fill
 
     # xargs batches the file list under ARG_MAX; `cat \$(cat ...)` would overflow.
     # NUL-delimited so it is robust to any path and to GNU/BSD xargs.
