@@ -253,6 +253,11 @@
                     "type": "boolean",
                     "description": "when doing variant calling, the genome to call against"
                 },
+                "vc_other_genomes": {
+                    "type": "string",
+                    "default": "",
+                    "description": "comma separated genomes for targets not found in vc_primary_genome (e.g. other species), a target is called against the first of these it's in, their reports go in variantCalls/otherGenomes/<genome>"
+                },
                 "known_amino_acid_changes_fnp": {
                     "type": "string",
                     "default": "/Users/nhathaway/hathaway/elucidatornf/etc/EMPTY_FILE.txt",

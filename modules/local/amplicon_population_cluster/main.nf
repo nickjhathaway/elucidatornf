@@ -5,16 +5,18 @@ process AMPLICON_POPULATION_CLUSTERING {
     cpus   { ncpus }
 
     input:
-    tuple path(fastqs_fnp), val(target_name), val(ncpus), path(meta_fnp, name: 'meta.tsv'), path(previous_pop_dir), val(sample_min_read_count), path(primers_fnp, name: 'primers.tsv'), val(panel_name)
+    // vc_genome is the genome the target is variant called against, blank to not call it
+    tuple path(fastqs_fnp), val(target_name), val(ncpus), path(meta_fnp, name: 'meta.tsv'), path(previous_pop_dir), val(sample_min_read_count), path(primers_fnp, name: 'primers.tsv'), val(panel_name), val(vc_genome)
     // variant calling on the final haplotypes, the same as VARIANT_CALL_ON_HAP_TABLE, an empty file for the genome dir turns it off
-    tuple path(vc_genome_dir), val(vc_primary_genome), path(vc_gff_fnp, name: 'vc_genome.gff'), path(vc_known_amino_acid_changes_fnp, name: 'vc_known_amino_acid_changes.tsv'), path(vc_bed_fnp, name: 'vc_genomic_locations.bed'), val(vc_args)
+    // the known amino acid changes are for vc_primary_genome, the beds dir has <genome>_variantCall.bed from ASSIGN_TARGET_GENOMES
+    tuple path(vc_genome_dir), val(vc_primary_genome), path(vc_gff_dir, name: 'vc_gffs'), path(vc_known_amino_acid_changes_fnp, name: 'vc_known_amino_acid_changes.tsv'), path(vc_beds_dir, name: 'vc_beds'), val(vc_args)
 
 
     output:
     path "${target_name}_selectedClustersInfo.tab.txt.gz", emit: clustering_results
     path "${target_name}_sampleClustersInfo.tab.txt.gz", emit: sample_clusters_info
     path "${target_name}_PMO.json.gz", emit: pmo
-    path "variantCalls/${target_name}", optional: true, emit: variant_calls
+    tuple val(vc_genome), path("variantCalls/${target_name}"), optional: true, emit: variant_calls
 
     script:
     def extra_args = task.ext.args ? task.ext.args : ''
@@ -26,9 +28,9 @@ process AMPLICON_POPULATION_CLUSTERING {
     if [ ! -f ${previous_pop_dir}/${target_name}.fasta ]; then previous_pop_arg=""; fi
     variant_call_args=""
     # the genome dir keeps its name so the vcf reference lines match VARIANT_CALL_ON_HAP_TABLE's
-    if [ -d "${vc_genome_dir}" ]; then
-        variant_call_args="--genome ${vc_genome_dir}/${vc_primary_genome}.fasta --gff vc_genome.gff --genomicLocations vc_genomic_locations.bed ${vc_args}"
-        if [ -s "\$(readlink -f vc_known_amino_acid_changes.tsv)" ]; then variant_call_args="\${variant_call_args} --knownAminoAcidChangesFnp vc_known_amino_acid_changes.tsv"; fi
+    if [ -d "${vc_genome_dir}" ] && [ -n "${vc_genome}" ]; then
+        variant_call_args="--genome ${vc_genome_dir}/${vc_genome}.fasta --gff vc_gffs/${vc_genome}.gff --genomicLocations vc_beds/${vc_genome}_variantCall.bed ${vc_args}"
+        if [ "${vc_genome}" == "${vc_primary_genome}" ] && [ -s "\$(readlink -f vc_known_amino_acid_changes.tsv)" ]; then variant_call_args="\${variant_call_args} --knownAminoAcidChangesFnp vc_known_amino_acid_changes.tsv"; fi
     fi
     # targets clustered with separate mates are named <target>-R1 and <target>-R2 but have the one set of primers
     primer_target="${target_name}"

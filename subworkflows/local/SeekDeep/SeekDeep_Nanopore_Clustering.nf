@@ -8,7 +8,8 @@ include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE as GEN_TARGET_INFO_FROM_GENOMES_
 include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE } from '../../../modules/local/gen_target_info_from_genomes'
 include { EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/extractor_by_kmer_matching'
 include { COMBINE_VARIANT_CALLS } from '../../../modules/local/combine_variant_calls/main.nf'
-include { popClusteringVariantCallArgs; noPopClusteringVariantCalls; pmoPreferredGenomes } from '../variant_call_setup.nf'
+include { popClusteringVariantCallArgs; noPopClusteringVariantCalls; pmoPreferredGenomes; variantCallGenomes; readTargetGenomes; variantCallGenomeFor } from '../variant_call_setup.nf'
+include { ASSIGN_TARGET_GENOMES } from '../../../modules/local/assign_target_genomes/main.nf'
 include { CONCATENATE_EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/concatenate_extractor_by_kmer_matching/main.nf'
 include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amplicon_cluster_by_kmer_similarity/main.nf'
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
@@ -99,6 +100,13 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
             def gff_obj = file("${gff_dir}/${vc_genome}.gff")
             if (!gff_obj.exists()) {
                 errors << "Variant calling GFF not found for --vc_primary_genome '${vc_genome}': '${gff_obj}' (expected in --gff_dir)"
+            }
+        }
+        variantCallGenomes().each { genome ->
+            ["${genome_dir_raw}/${genome}.fasta", "${gff_dir}/${genome}.gff"].each { fnp ->
+                if (!file(fnp).exists()) {
+                    errors << "Variant calling genome file not found for '${genome}': '${fnp}' (--vc_primary_genome and --vc_other_genomes need a fasta in --genome_dir and a gff in --gff_dir)"
+                }
             }
         }
     }
@@ -302,21 +310,34 @@ Please correct the above issues and re-run.
                     params.pmo_panel_name
                 )
         }
+    // the genome each target is variant called against, the first of vc_primary_genome and vc_other_genomes it's in
+    def target_genomes_ch = channel.value([:])
+    def assigned_genomes_ch = channel.value(file(params.empty_file_fnp))
+    if (params.do_variant_calling) {
+        ASSIGN_TARGET_GENOMES(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome, variantCallGenomes().join(","), primer_info_dir.toString())
+        assigned_genomes_ch = ASSIGN_TARGET_GENOMES.out.assigned
+        target_genomes_ch = assigned_genomes_ch.map { assigned_dir -> readTargetGenomes(assigned_dir) }
+    }
+    def input_to_population_clustering_with_genome = input_to_population_clustering
+        .combine(target_genomes_ch)
+        .map { entry ->
+            def target_genomes = entry[-1]
+            def pop_input = entry[0..-2]
+            pop_input + [variantCallGenomeFor(target_genomes, pop_input[1])]
+        }
     // population clustering
     // population clustering calls variants on the final haplotypes when variant calling is on
     def vc_known_amino_acid_changes_fnp = params.empty_file_fnp
     if(file("${genome_dir.getParent()}/info/drug_resistant_aaPositions.tsv").exists()){
         vc_known_amino_acid_changes_fnp = file("${genome_dir.getParent()}/info/drug_resistant_aaPositions.tsv")
     }
-    def vc_bed_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome.map{loc_dir ->
-            file("${loc_dir}/${params.vc_primary_genome}_inner.bed")}
     def vc_setup_ch = noPopClusteringVariantCalls()
     if (params.do_variant_calling) {
         def vc_args = popClusteringVariantCallArgs(!params.vc_no_pairwise_comps)
-        vc_setup_ch = vc_bed_ch.map{ bed ->
-            tuple(genome_dir, params.vc_primary_genome, file("${gff_dir}/${params.vc_primary_genome}.gff"), file(vc_known_amino_acid_changes_fnp), bed, vc_args)}.first()
+        vc_setup_ch = assigned_genomes_ch.map{ assigned_dir ->
+            tuple(genome_dir, params.vc_primary_genome, gff_dir, file(vc_known_amino_acid_changes_fnp), assigned_dir, vc_args)}
     }
-    AMPLICON_POPULATION_CLUSTERING(input_to_population_clustering, vc_setup_ch)
+    AMPLICON_POPULATION_CLUSTERING(input_to_population_clustering_with_genome, vc_setup_ch)
 
     //gather all clustered results
     CONCATENATE_AMPLICON_POPULATION_CLUSTERING(
@@ -338,27 +359,38 @@ Please correct the above issues and re-run.
 
         def variant_call_dir = file("${final_results_dir}/variantCalls")
 
-        //the reports across targets from the calls population clustering made
+        //the reports across targets from the calls population clustering made, one set per genome, the primary genome's in variantCalls
+        def combine_input = AMPLICON_POPULATION_CLUSTERING.out.variant_calls
+            .groupTuple()
+            .combine(assigned_genomes_ch)
+            .multiMap { genome, target_calls, assigned_dir ->
+                bed: file("${assigned_dir}/${genome}_variantCall.bed")
+                genome: genome
+                gff: file("${gff_dir}/${genome}.gff")
+                known: genome == params.vc_primary_genome ? file(vc_known_amino_acid_changes_fnp) : file(params.empty_file_fnp)
+                calls: target_calls
+                pub_dir: genome == params.vc_primary_genome ? variant_call_dir.toString() : "${variant_call_dir}/otherGenomes/${genome}".toString()
+            }
         COMBINE_VARIANT_CALLS (
-            vc_bed_ch,
+            combine_input.bed,
             CONCATENATE_AMPLICON_POPULATION_CLUSTERING.out.all_selected_clusters_info,
             genome_dir,
-            params.vc_primary_genome,
-            file("${gff_dir}/${params.vc_primary_genome}.gff"),
-            file(vc_known_amino_acid_changes_fnp),
+            combine_input.genome,
+            combine_input.gff,
+            combine_input.known,
             params.vc_variant_frequency_cut_off,
             params.vc_variant_occurrence_cut_off,
             meta_fnp,
-            AMPLICON_POPULATION_CLUSTERING.out.variant_calls | collect,
+            combine_input.calls,
             "",
             "",
-            variant_call_dir.toString(),
+            combine_input.pub_dir,
             params.vc_extra_args
         )
         AMPLICON_CREATE_DASHBOARDS(file("${output_dir}").toString(),
             file("${projectDir}/etc/nanopore_clustering_report.qmd"),
             params.nanopore_render_clustering_report,
-            COMBINE_VARIANT_CALLS.out.reports,
+            COMBINE_VARIANT_CALLS.out.reports.collect().map { reports -> reports[0] },
             CONCATENATE_EXTRACTOR_BY_KMER_MATCHING.out.all_extraction_stats
         )
     } else {
