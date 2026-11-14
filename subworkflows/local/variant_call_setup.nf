@@ -11,3 +11,13 @@ def noPopClusteringVariantCalls() {
     def empty = file(params.empty_file_fnp)
     return channel.value(tuple(empty, "", empty, empty, empty, ""))
 }
+
+// genomes a target in several genomes is placed in first for the PMO, the variant calling genome after any given ones so the target locations match the calls
+def pmoPreferredGenomes() {
+    def genomes = params.pmo_preferred_genomes ? params.pmo_preferred_genomes.toString().split(",").collect { g -> g.trim() }.findAll { g -> g } : []
+    def vc_genome = params.vc_primary_genome ? params.vc_primary_genome.toString().trim() : ""
+    if (vc_genome && vc_genome.toLowerCase() != "false" && !genomes.contains(vc_genome)) {
+        genomes << vc_genome
+    }
+    return genomes.join(",")
+}

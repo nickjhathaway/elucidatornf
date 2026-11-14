@@ -8,7 +8,7 @@ include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE as GEN_TARGET_INFO_FROM_GENOMES_
 include { GEN_TARGET_INFO_FROM_GENOMES_NANOPORE } from '../../../modules/local/gen_target_info_from_genomes'
 include { EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/extractor_by_kmer_matching'
 include { COMBINE_VARIANT_CALLS } from '../../../modules/local/combine_variant_calls/main.nf'
-include { popClusteringVariantCallArgs; noPopClusteringVariantCalls } from '../variant_call_setup.nf'
+include { popClusteringVariantCallArgs; noPopClusteringVariantCalls; pmoPreferredGenomes } from '../variant_call_setup.nf'
 include { CONCATENATE_EXTRACTOR_BY_KMER_MATCHING } from '../../../modules/local/concatenate_extractor_by_kmer_matching/main.nf'
 include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amplicon_cluster_by_kmer_similarity/main.nf'
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
@@ -324,10 +324,14 @@ Please correct the above issues and re-run.
         AMPLICON_POPULATION_CLUSTERING.out.sample_clusters_info | collect,
         final_results_dir.toString())
 
-    //one PMO for all the targets with the sample meta
+    //one PMO for all the targets with each target's genome location and genes, and the sample meta
     MERGE_AMPLICON_PMOS(
         AMPLICON_POPULATION_CLUSTERING.out.pmo | collect,
         meta_fnp,
+        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.locations_by_genome,
+        genome_dir,
+        gff_dir,
+        pmoPreferredGenomes(),
         final_results_dir.toString())
 
     if (params.do_variant_calling){

@@ -154,6 +154,13 @@ process GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA {
                 --errors ${errors_allowed} \
                 --numThreads ${ncpus} \
                 --useBlast
+        # the extractor needs an overlap status for every target, which only comes from finding the target in a genome
+        awk 'NR > 1 {print \$1}' genome_extraction/forSeekDeep/overlapStatuses.txt | sort -u > targets_with_overlap_status.txt
+        tr -d '\\r' < ${primers_fnp} | awk 'NR > 1 && NF {print \$1}' | sort -u | comm -23 - targets_with_overlap_status.txt > targets_not_in_genomes.txt
+        if [ -s targets_not_in_genomes.txt ]; then
+            echo "error, these targets weren't found in any genome in --genome_dir so they have no overlap status, give a genome directory with the genomes of every species the panel targets: \$(paste -sd ' ' targets_not_in_genomes.txt)" >&2
+            exit 1
+        fi
         ln -s genome_extraction/forSeekDeep
         ln -s genome_extraction/locationsByGenome
         elucidator tableExtractCriteria --file genome_extraction/allExtractionCounts.tab.txt \
