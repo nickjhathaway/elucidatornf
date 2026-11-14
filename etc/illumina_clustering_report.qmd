@@ -126,8 +126,12 @@ allExtractionProfile = readr::read_tsv("extractionReports/allExtractionProfile.t
   mutate(sample_name = ifelse(is.na(sample_name), sampleName, sample_name))
 
 targets_name_key = tibble()
-if(file.exists("finalResults/variantCalls/reports/info/targetsIntersectingWithGenesInfo.tsv")){
-  targetsIntersectingWithGenesInfo = readr::read_tsv("finalResults/variantCalls/reports/info/targetsIntersectingWithGenesInfo.tsv") %>%
+# the genes of the targets in the primary genome and in any other genomes targets were variant called against
+targetsIntersectingWithGenesInfo_fnps = c("finalResults/variantCalls/reports/info/targetsIntersectingWithGenesInfo.tsv",
+  Sys.glob("finalResults/variantCalls/otherGenomes/*/reports/info/targetsIntersectingWithGenesInfo.tsv"))
+targetsIntersectingWithGenesInfo_fnps = targetsIntersectingWithGenesInfo_fnps[file.exists(targetsIntersectingWithGenesInfo_fnps)]
+if(length(targetsIntersectingWithGenesInfo_fnps) > 0){
+  targetsIntersectingWithGenesInfo = bind_rows(lapply(targetsIntersectingWithGenesInfo_fnps, readr::read_tsv, col_types = readr::cols(.default = "c"))) %>%
     mutate(new_target_name = ifelse(is.na(Name), paste0(target, "-", ID), paste0(target, "-", Name)))
   targets_name_key = targetsIntersectingWithGenesInfo %>%
     ungroup() %>%
@@ -396,5 +400,60 @@ if(file.exists("finalResults/variantCalls/reports/summary/AAChangesInfo.tsv.gz")
     select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
     unique()
   create_dt(AAChangesInfo_targeted_population)
+}
+```
+
+```{r}
+#| output: asis
+
+# a tab per other genome targets were variant called against (--vc_other_genomes), from finalResults/variantCalls/otherGenomes/<genome>,
+# those genomes have no known mutations so every amino acid change is shown
+other_genome_dirs = sort(list.dirs("finalResults/variantCalls/otherGenomes", recursive = FALSE))
+for (other_genome_dir in other_genome_dirs) {
+  other_genome = basename(other_genome_dir)
+  other_AAChangesInfo = tibble()
+  other_AAChangesInfo_fnp = file.path(other_genome_dir, "reports/summary/AAChangesInfo.tsv.gz")
+  if (file.exists(other_AAChangesInfo_fnp)) {
+    other_AAChangesInfo = readr::read_tsv(other_AAChangesInfo_fnp, show_col_types = FALSE) %>%
+      filter(AA_cnt > 0)
+  }
+  cat(paste0('\n\n::: {.card title="', other_genome, ' mutations"}\n\n'))
+  if (nrow(other_AAChangesInfo) == 0) {
+    cat(paste0("No amino acid changes were called against ", other_genome, ".\n\n"))
+  } else {
+    other_AAChangesInfo_population = other_AAChangesInfo %>%
+      select(Gene_ID, Gene, AA_Change, reference_AA_pos, reference_AA, AA, is_reference, AlleleCount, AlleleFrequency, SampleCount, SamplePrevalence) %>%
+      unique()
+    other_AAChangesInfo_genotype_count = other_AAChangesInfo %>%
+      group_by(Gene, Gene_ID, reference_AA_pos, sample) %>%
+      mutate(genotype = case_when(
+        all(!is_reference) ~ "alt",
+        all(is_reference) ~ "ref",
+        T ~ "mixed"
+      )) %>%
+      group_by(Gene, Gene_ID, reference_AA_pos) %>%
+      mutate(position_sample_total = n_distinct(sample)) %>%
+      group_by(Gene, Gene_ID, reference_AA_pos, position_sample_total, genotype) %>%
+      summarise(sample_count = n_distinct(sample), .groups = "drop") %>%
+      mutate(sample_prev = sample_count/position_sample_total) %>%
+      group_by(Gene, Gene_ID) %>%
+      mutate(Identifier = paste0(Gene, "-", Gene_ID, "-", stringr::str_pad(reference_AA_pos, max(nchar(reference_AA_pos))))) %>%
+      ungroup()
+    other_genome_plot = ggplotly(ggplot(other_AAChangesInfo_genotype_count) +
+      geom_col(aes(x = Identifier, y = sample_prev, fill = genotype, sample_count = sample_count), color = "black") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+      scale_fill_manual(values = colorPalette_08), height = 450)
+    # several widgets in one tab, a block (not flex) container so each keeps its own height and the tab scrolls
+    print(htmltools::div(style = "display: block; overflow-y: auto; height: 100%;",
+      htmltools::h5("Mutations frequency and prevalence table"),
+      create_dt(other_AAChangesInfo_population),
+      htmltools::h5("Mutations prevalence plot"),
+      other_genome_plot,
+      htmltools::h5("Mutations within sample info table"),
+      create_dt(other_AAChangesInfo %>% select(-Gene_Transcript_ID, -ExonicFunc, -Mutation_Name, -CoveredBy, -Targeted))
+    ))
+  }
+  cat("\n\n:::\n\n")
 }
 ```
