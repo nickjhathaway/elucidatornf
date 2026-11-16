@@ -209,6 +209,9 @@ row per input and, for pooled inputs, per barcode:
 `meta/sample_name_key.tsv` records the input, sample, replicate and barcodes of every sample that
 had extracted reads.
 
+More detail, including how replicates are combined and the validation rules, in
+[docs/sample_key.md](docs/sample_key.md).
+
 ### Nanopore amplicon clustering — `nanopore_clustering.nf`
 
 **Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
