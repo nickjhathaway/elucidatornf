@@ -4,7 +4,7 @@ class SampleKey {
 *
 *   input     sample   replicate   fbarcode   rbarcode
 *
-*  - input: the input name as scanned (fastq pair prefix for illumina, e.g. Lib1_S1 for Lib1_S1_R1_001.fastq.gz)
+*  - input: the input name as scanned (for illumina the fastq pair prefix minus the illumina suffix, e.g. Lib1 for Lib1_S1_L001_R1_001.fastq.gz, or the full prefix Lib1_S1)
 *  - sample: the final sample name, a sample on more than one row has replicates that are
 *    combined during population clustering
 *  - replicate (optional): name for the replicate, when blank it's the sample name if the sample

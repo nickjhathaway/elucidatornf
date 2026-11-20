@@ -9,7 +9,7 @@ include { GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA } from '../../../modules/local/g
 
 workflow ILLUMINA_READ_QC {
     take:
-    input_fastq_dir_raw //a directory with all fastqs to be analyzed
+    input_fastq_dir_raw //a directory with all fastqs to be analyzed, searched recursively with params.illumina_input_recursive
     primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
     genome_dir_raw  // a directory with genomes
     gff_dir_raw // a directory with annotation gff files, only used when the target info is generated
@@ -58,6 +58,9 @@ workflow ILLUMINA_READ_QC {
     }
 
     def sample_key = SampleKey.load(SampleKey.keyFnp(params))
+    def input_recursive = params.illumina_input_recursive.toString().toBoolean()
+    def strip_suffix = params.illumina_strip_sample_suffix.toString().toBoolean()
+    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, sample_key.keySet())
     errors += ReadQc.validate(params, genome_dir, sample_key)
 
     if (!errors.isEmpty()) {
@@ -89,12 +92,11 @@ Please correct the above issues and re-run.
         for_seek_deep_info_ch.map { seek_deep_info_dir -> file("${seek_deep_info_dir}/refSeqs") }
 
     // the same flags the extraction would get, so the primers are looked for in the same way
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, primers_fnp, "illumina", params.max_cpus, read_qc_dir, "", false)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, primers_fnp, "illumina", params.max_cpus, read_qc_dir, "", input_recursive)
 
-    def fastq_input_ch = channel.fromFilePairs(
-        ["${input_fastq_dir}/*_{1,2}{_001,}.fastq{.gz,}",
-        "${input_fastq_dir}/*_{R1,R2}{_001,}.fastq{.gz,}"]
-    ).ifEmpty { error "No paired fastqs found in --input_fastq_dir: '${input_fastq_dir}'" }
+    def fastq_input_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
+        .ifEmpty { error "No paired fastqs found in --input_fastq_dir: '${input_fastq_dir}'" }
+        .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, sample_key.keySet()), reads) }
 
     def host_genome = params.illumina_read_qc_host_genome_fnp ? file(params.illumina_read_qc_host_genome_fnp) : null
 

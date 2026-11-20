@@ -67,6 +67,12 @@ The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` share an option
 **Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
 `--outdir`, `--illumina_clustering_paired_end_length`.
 
+Only the top level of `--input_fastq_dir` is searched for the paired fastqs unless
+`--illumina_input_recursive true` is given (also applies to `illumina_read_qc.nf`). Samples are named
+by the file name minus the Illumina suffix, like SeekDeep (`9_S390_R1_001.fastq.gz` is sample `9`,
+`--illumina_strip_sample_suffix false` keeps `9_S390`). Two fastq pairs getting the same name (the
+same file name in two subdirectories, or several lanes of a sample) is an error.
+
 **Key options** (see [`conf/params/illumina.config`](conf/params/illumina.config) /
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--illumina_clustering_min_sample_read_count`, `--illumina_clustering_trim_front`,
@@ -187,13 +193,18 @@ row per input and, for pooled inputs, per barcode:
 
 | input | sample | replicate | fbarcode | rbarcode |
 |---|---|---|---|---|
-| Run1_LibA_S1 | P001 | | ACGTACGTAC | TTGACCATGC |
-| Run1_LibA_S1 | P002 | | TGCATGCATG | CCAGTTGACA |
-| Run2_LibA_S3 | P001 | | ACGTACGTAC | TTGACCATGC |
-| Sample9_S4 | P009 | | | |
+| Run1_LibA | P001 | | ACGTACGTAC | TTGACCATGC |
+| Run1_LibA | P002 | | TGCATGCATG | CCAGTTGACA |
+| Run2_LibA | P001 | | ACGTACGTAC | TTGACCATGC |
+| Sample9 | P009 | | | |
 
-- `input` (required) is the input name: the fastq pair prefix for Illumina (`Run1_LibA_S1` for
-  `Run1_LibA_S1_R1_001.fastq.gz`), the name in `meta/rawInputSampleNames.tsv` for nanopore.
+- `input` (required) is the input name: for Illumina the fastq pair prefix minus the Illumina suffix
+  (index barcodes, `_S`, `_L`), so `Run1_LibA` for `Run1_LibA_S1_L001_R1_001.fastq.gz`, the same name
+  SeekDeep gives it (`--illumina_strip_sample_suffix false` keeps `Run1_LibA_S1_L001`; the full prefix
+  in the key also matches). For nanopore it's the name in `meta/rawInputSampleNames.tsv`.
+- `SeekDeep getPossibleSampleNamesFromRawInput --inputDir fastq/ --sampleKeyOut sampleKey.tsv` writes
+  a key for the inputs in a directory, add `--replicatePattern "(.*)(-R[0-9]+)"` to make inputs that
+  differ only by the replicate part (`Ctrl1-R1`, `Ctrl1-R2`) replicates of one sample (`Ctrl1`).
 - `sample` (required) is the final sample name. **A sample on more than one row has replicates**,
   which are clustered separately and combined during population clustering (by default a haplotype
   has to be found in every replicate that passes `--*_clustering_min_sample_read_count`, give

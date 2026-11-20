@@ -516,6 +516,16 @@
             "default": false,
             "description": "also run SeekDeep ampliconReadQC, needs --illumina_read_qc_primary_genome, written to readQC/"
         },
+        "illumina_input_recursive": {
+            "type": "boolean",
+            "default": false,
+            "description": "search --input_fastq_dir recursively for the paired fastqs, the sample names (file names minus _R1/_R2) have to be unique across the subdirectories"
+        },
+        "illumina_strip_sample_suffix": {
+            "type": "boolean",
+            "default": true,
+            "description": "name samples like SeekDeep does, dropping the illumina suffix (index barcodes, _S, _L, _R1/_R2, _001), e.g. 9_S390_R1_001.fastq.gz becomes 9 rather than 9_S390; a sample key input with the full prefix still matches"
+        },
         "illumina_read_qc_primary_genome": {
             "type": "string",
             "description": "the primary reference genome in --genome_dir for the read QC"

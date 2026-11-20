@@ -24,7 +24,7 @@ include { completionSummary } from '../../../subworkflows/nf-core/utils_nfcore_p
 
 workflow ILLUMINA_AMPLICON_CLUSTERING {
     take:
-    input_fastq_dir_raw //a directory with all fastqs to be analyzed
+    input_fastq_dir_raw //a directory with all fastqs to be analyzed, searched recursively with params.illumina_input_recursive
     primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
     genome_dir_raw  // a directory with genomes
     gff_dir_raw // a directory with annotation gff files
@@ -132,6 +132,10 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
         }
     }
 
+    def input_recursive = params.illumina_input_recursive.toString().toBoolean()
+    def strip_suffix = params.illumina_strip_sample_suffix.toString().toBoolean()
+    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, SampleKey.load(SampleKey.keyFnp(params)).keySet())
+
     if (params.illumina_clustering_read_qc) {
         errors += ReadQc.validate(params, genome_dir_raw, SampleKey.load(SampleKey.keyFnp(params)))
     }
@@ -198,12 +202,10 @@ Please correct the above issues and re-run.
     GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)
 
     // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "", false)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "", input_recursive)
     //@todo, concatenate lanes if multiple present
-    fastq_input_ch = channel.fromFilePairs(
-        ["${input_fastq_dir}/*_{1,2}{_001,}.fastq{.gz,}",
-        "${input_fastq_dir}/*_{R1,R2}{_001,}.fastq{.gz,}"]
-    )
+    fastq_input_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
+        .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, sample_key.keySet()), reads) }
     if (!sample_key.isEmpty()) {
         fastq_input_ch.map { sample_id, _reads -> sample_id }.collect().subscribe { names ->
             def unmatched = sample_key.keySet().findAll { input -> !names.contains(input) }.sort()
