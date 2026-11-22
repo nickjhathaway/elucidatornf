@@ -206,8 +206,6 @@ Please correct the above issues and re-run.
 
     GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)
 
-    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "", input_recursive)
     //@todo, concatenate lanes if multiple present
     def named_fastqs_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
         .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, full_sample_key.keySet()), reads, pair_prefix) }
@@ -226,6 +224,12 @@ Please correct the above issues and re-run.
         }
         fastq_input_ch = fastq_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input fastq pair in --input_fastq_dir: '${input_fastq_dir}'" }
     }
+    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account;
+    // only the fastq pairs being processed are looked at, other files in the input directory can trip up SeekDeep
+    def flag_generator_inputs_ch = fastq_input_ch
+        .flatMap { _sample_id, reads -> reads.collect { fastq -> FlagGeneratorInputs.line(input_fastq_dir, fastq, fastq.name) } }
+        .collectFile(name: "flag_generator_inputs.tsv", newLine: true, sort: true)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, flag_generator_inputs_ch, all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "")
     if (!sample_key.isEmpty()) {
         fastq_input_ch.map { sample_id, _reads -> sample_id }.collect().subscribe { names ->
             def unmatched = sample_key.keySet().findAll { input -> !names.contains(input) }.sort()

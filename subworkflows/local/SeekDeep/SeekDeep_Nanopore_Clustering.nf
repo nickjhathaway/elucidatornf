@@ -191,10 +191,6 @@ Please correct the above issues and re-run.
     // e.g. the same barcode from different runs, stop the run before the long extraction step
     SCAN_RAW_INPUT_SAMPLE_NAMES(input_fastq_dir, "nanopore", input_recursive, prefix_with_top_dir, bam_sample_name_from_sm, meta_info_dir.toString())
 
-    // SeekDeep only looks at fastqs by default, so have it look at bams as well
-    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir.toString(), '.*\\.(fastq(\\.gz)?|bam)', input_recursive)
-
     def scanned_samples_ch = SCAN_RAW_INPUT_SAMPLE_NAMES.out.sample_names
         .splitCsv(header: true, sep: '\t')
         .filter { row -> row.status == "ok" }
@@ -233,12 +229,21 @@ Please correct the above issues and re-run.
     }
 
     // file paths in the scan are relative to the input directory, ignored files (e.g. unclassified) are skipped
-    def reads_input_ch = scanned_samples_ch
+    def selected_samples_ch = scanned_samples_ch
         .filter { row -> SampleSelection.selectsInput(samples_keep, full_sample_key, row.sample) }
+    def reads_input_ch = selected_samples_ch
         .map { row -> tuple(file("${input_fastq_dir}/${row.file}"), row.sample) }
     if (samples_keep != null) {
         reads_input_ch = reads_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input sample in --input_fastq_dir (see ${meta_info_dir}/rawInputSampleNames.tsv)" }
     }
+
+    // SeekDeep only looks at fastqs by default, so have it look at bams as well
+    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account;
+    // only the input files being processed are looked at (not ignored or unselected ones), linked by sample name
+    def flag_generator_inputs_ch = selected_samples_ch
+        .map { row -> "${row.file}\t${FlagGeneratorInputs.nanoporeLinkName(row.file, row.sample)}".toString() }
+        .collectFile(name: "flag_generator_inputs.tsv", newLine: true, sort: true)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, flag_generator_inputs_ch, all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir.toString(), '.*\\.(fastq(\\.gz)?|bam)')
 
     input_to_extractor = reads_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)

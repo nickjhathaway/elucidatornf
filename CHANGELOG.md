@@ -13,6 +13,8 @@ Initial release of nickjhathaway/elucidatornf, created with the [nf-core](https:
 
 ### `Fixed`
 
+- The extractor flag guessing (`AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR`) only looks at the input files the run processes (kept samples, properly paired/named files), so other files in `--input_fastq_dir`, e.g. single end fastqs, no longer make it fail
+
 ### `Dependencies`
 
 ### `Deprecated`

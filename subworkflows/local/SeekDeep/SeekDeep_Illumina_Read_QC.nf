@@ -94,14 +94,17 @@ Please correct the above issues and re-run.
         channel.value(custom_ref_seqs_dir) :
         for_seek_deep_info_ch.map { seek_deep_info_dir -> file("${seek_deep_info_dir}/refSeqs") }
 
-    // the same flags the extraction would get, so the primers are looked for in the same way
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, primers_fnp, "illumina", params.max_cpus, read_qc_dir, "", input_recursive)
-
     def fastq_input_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
         .ifEmpty { error "No paired fastqs found in --input_fastq_dir: '${input_fastq_dir}'" }
         .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, sample_key.keySet()), reads) }
         .filter { sample_id, _reads -> SampleSelection.selectsInput(samples_keep, sample_key, sample_id) }
         .ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input fastq pair in --input_fastq_dir: '${input_fastq_dir}'" }
+
+    // the same flags the extraction would get, so the primers are looked for in the same way
+    def flag_generator_inputs_ch = fastq_input_ch
+        .flatMap { _sample_id, reads -> reads.collect { fastq -> FlagGeneratorInputs.line(input_fastq_dir, fastq, fastq.name) } }
+        .collectFile(name: "flag_generator_inputs.tsv", newLine: true, sort: true)
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, flag_generator_inputs_ch, primers_fnp, "illumina", params.max_cpus, read_qc_dir, "")
 
     def host_genome = params.illumina_read_qc_host_genome_fnp ? file(params.illumina_read_qc_host_genome_fnp) : null
 
