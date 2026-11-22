@@ -134,10 +134,14 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
 
     def input_recursive = params.illumina_input_recursive.toString().toBoolean()
     def strip_suffix = params.illumina_strip_sample_suffix.toString().toBoolean()
-    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, SampleKey.load(SampleKey.keyFnp(params)).keySet())
+    // optional list of the samples to process (--amplicon_samples_keep_file), null processes everything
+    def full_sample_key = SampleKey.load(SampleKey.keyFnp(params))
+    def samples_keep = SampleSelection.load(params.amplicon_samples_keep_file)
+    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet(),
+        { name -> SampleSelection.selectsInput(samples_keep, full_sample_key, name) })
 
     if (params.illumina_clustering_read_qc) {
-        errors += ReadQc.validate(params, genome_dir_raw, SampleKey.load(SampleKey.keyFnp(params)))
+        errors += ReadQc.validate(params, genome_dir_raw, SampleSelection.filterKey(samples_keep, full_sample_key))
     }
 
     //
@@ -181,9 +185,10 @@ Please correct the above issues and re-run.
     def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
 
-    // optional sample key, input name -> rows of sample, replicate and barcodes (see lib/SampleKey.groovy)
-    def sample_key = SampleKey.load(SampleKey.keyFnp(params))
-    def keyed_names = SampleKey.keyedNames(sample_key)
+    // optional sample key, input name -> rows of sample, replicate and barcodes (see lib/SampleKey.groovy),
+    // narrowed to the selected samples when there's a samples keep file
+    def sample_key = SampleSelection.filterKey(samples_keep, full_sample_key)
+    def keyed_names = SampleKey.keyedNames(full_sample_key)
     // barcoded inputs get their own id file with only their MIDs, named by replicate so the extractor
     // writes <target><replicate>.fastq.gz for them
     def mid_id_dir = file("${meta_info_dir}/midIdFiles")
@@ -204,8 +209,23 @@ Please correct the above issues and re-run.
     // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account
     AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(file("${input_fastq_dir}"), all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "", input_recursive)
     //@todo, concatenate lanes if multiple present
-    fastq_input_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
-        .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, sample_key.keySet()), reads) }
+    def named_fastqs_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
+        .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, full_sample_key.keySet()), reads, pair_prefix) }
+    fastq_input_ch = named_fastqs_ch
+        .filter { sample_id, _reads, _pair_prefix -> SampleSelection.selectsInput(samples_keep, full_sample_key, sample_id) }
+        .map { sample_id, reads, _pair_prefix -> tuple(sample_id, reads) }
+    if (samples_keep != null) {
+        named_fastqs_ch.toList().subscribe { pairs ->
+            def unmatched = SampleSelection.unmatched(samples_keep, full_sample_key, pairs.collect { pair -> pair[0] })
+            if (unmatched) {
+                def prefix_hits = unmatched.findAll { name -> pairs.any { pair -> pair[2] == name } }
+                def hint = prefix_hits.isEmpty() ? "" :
+                    ". ${prefix_hits.join(", ")} match fastq prefixes that keep the illumina suffix, list the sample names instead (see --illumina_strip_sample_suffix)"
+                log.warn "--amplicon_samples_keep_file names that don't match any input sample and won't be processed: ${unmatched.join(", ")}${hint}"
+            }
+        }
+        fastq_input_ch = fastq_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input fastq pair in --input_fastq_dir: '${input_fastq_dir}'" }
+    }
     if (!sample_key.isEmpty()) {
         fastq_input_ch.map { sample_id, _reads -> sample_id }.collect().subscribe { names ->
             def unmatched = sample_key.keySet().findAll { input -> !names.contains(input) }.sort()

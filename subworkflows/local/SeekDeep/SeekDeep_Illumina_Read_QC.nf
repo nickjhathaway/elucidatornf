@@ -58,10 +58,13 @@ workflow ILLUMINA_READ_QC {
     }
 
     def sample_key = SampleKey.load(SampleKey.keyFnp(params))
+    // optional list of the samples to process (--amplicon_samples_keep_file), null processes everything
+    def samples_keep = SampleSelection.load(params.amplicon_samples_keep_file)
     def input_recursive = params.illumina_input_recursive.toString().toBoolean()
     def strip_suffix = params.illumina_strip_sample_suffix.toString().toBoolean()
-    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, sample_key.keySet())
-    errors += ReadQc.validate(params, genome_dir, sample_key)
+    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, sample_key.keySet(),
+        { name -> SampleSelection.selectsInput(samples_keep, sample_key, name) })
+    errors += ReadQc.validate(params, genome_dir, SampleSelection.filterKey(samples_keep, sample_key))
 
     if (!errors.isEmpty()) {
         def joined = errors.collect { it -> "  - ${it}" }.join("\n")
@@ -97,6 +100,8 @@ Please correct the above issues and re-run.
     def fastq_input_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
         .ifEmpty { error "No paired fastqs found in --input_fastq_dir: '${input_fastq_dir}'" }
         .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, sample_key.keySet()), reads) }
+        .filter { sample_id, _reads -> SampleSelection.selectsInput(samples_keep, sample_key, sample_id) }
+        .ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input fastq pair in --input_fastq_dir: '${input_fastq_dir}'" }
 
     def host_genome = params.illumina_read_qc_host_genome_fnp ? file(params.illumina_read_qc_host_genome_fnp) : null
 

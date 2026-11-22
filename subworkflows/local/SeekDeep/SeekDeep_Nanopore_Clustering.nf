@@ -157,9 +157,12 @@ Please correct the above issues and re-run.
     def final_results_dir = file("${output_dir}/finalResults")
     final_results_dir.mkdirs()
 
-    // optional sample key, input name -> rows of sample, replicate and barcodes (see lib/SampleKey.groovy)
-    def sample_key = SampleKey.load(SampleKey.keyFnp(params))
-    def keyed_names = SampleKey.keyedNames(sample_key)
+    // optional sample key, input name -> rows of sample, replicate and barcodes (see lib/SampleKey.groovy),
+    // narrowed to the selected samples when there's a samples keep file (--amplicon_samples_keep_file)
+    def full_sample_key = SampleKey.load(SampleKey.keyFnp(params))
+    def samples_keep = SampleSelection.load(params.amplicon_samples_keep_file)
+    def sample_key = SampleSelection.filterKey(samples_keep, full_sample_key)
+    def keyed_names = SampleKey.keyedNames(full_sample_key)
     // barcoded inputs get their own id file with only their MIDs, named by replicate so the extractor
     // writes <target><replicate>.fastq.gz for them
     def mid_id_dir = file("${meta_info_dir}/midIdFiles")
@@ -214,9 +217,28 @@ Please correct the above issues and re-run.
             }
     }
 
+    if (samples_keep != null) {
+        scanned_samples_ch
+            .toList()
+            .subscribe { rows ->
+                def unmatched = SampleSelection.unmatched(samples_keep, full_sample_key, rows.collect { row -> row.sample })
+                if (!unmatched.isEmpty()) {
+                    def base_name_hits = unmatched.findAll { name -> rows.any { row -> row.baseName == name } }
+                    def hint = base_name_hits.isEmpty() ? "" :
+                        ". ${base_name_hits.join(", ")} match sample names before the top directory prefix, " +
+                        "the keep file needs the prefixed names (see ${meta_info_dir}/rawInputSampleNames.tsv)"
+                    log.warn "--amplicon_samples_keep_file names that don't match any input sample and won't be processed: ${unmatched.join(", ")}${hint}"
+                }
+            }
+    }
+
     // file paths in the scan are relative to the input directory, ignored files (e.g. unclassified) are skipped
     def reads_input_ch = scanned_samples_ch
+        .filter { row -> SampleSelection.selectsInput(samples_keep, full_sample_key, row.sample) }
         .map { row -> tuple(file("${input_fastq_dir}/${row.file}"), row.sample) }
+    if (samples_keep != null) {
+        reads_input_ch = reads_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input sample in --input_fastq_dir (see ${meta_info_dir}/rawInputSampleNames.tsv)" }
+    }
 
     input_to_extractor = reads_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
             .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)

@@ -43,9 +43,10 @@ class IlluminaInput {
 * What's wrong with the fastq pairs in the input directory, more than one pair getting the same sample name
 * (the same name in several subdirectories, or several lanes once the suffix is stripped)
 *
+* @param keepSample whether a sample name is processed, collisions between samples that aren't are ignored
 * @return a message for each sample name given to more than one pair
 */
-  static List<String> validate(Path inputDir, boolean recursive, boolean strip, Set<String> keyInputs) {
+  static List<String> validate(Path inputDir, boolean recursive, boolean strip, Set<String> keyInputs, Closure<Boolean> keepSample = { _name -> true }) {
     if( !Files.isDirectory(inputDir) ) {
       return []
     }
@@ -55,7 +56,10 @@ class IlluminaInput {
       stream.filter { Path p -> Files.isRegularFile(p) }.each { Path p ->
         def m = p.fileName.toString() =~ firstMatePat
         if( m.matches() ) {
-          pairsBySample[sampleName(m.group(1), p, strip, keyInputs)] << inputDir.relativize(p).toString()
+          def sample = sampleName(m.group(1), p, strip, keyInputs)
+          if( keepSample(sample) ) {
+            pairsBySample[sample] << inputDir.relativize(p).toString()
+          }
         }
       }
     } finally {

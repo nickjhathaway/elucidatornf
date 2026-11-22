@@ -9,6 +9,8 @@ Initial release of nickjhathaway/elucidatornf, created with the [nf-core](https:
 
 ### `Added`
 
+- `--amplicon_samples_keep_file` for `illumina_clustering.nf`, `nanopore_clustering.nf` and `illumina_read_qc.nf`: only process the samples listed (input names or sample key sample/replicate names), like `--wgs_samples_keep_file` and `--pw_samples_file`
+
 ### `Fixed`
 
 ### `Dependencies`

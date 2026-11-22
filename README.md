@@ -78,6 +78,7 @@ same file name in two subdirectories, or several lanes of a sample) is an error.
 `--illumina_clustering_min_sample_read_count`, `--illumina_clustering_trim_front`,
 `--illumina_clustering_trim_back`, `--illumina_clustering_population_ncpus`,
 `--amplicon_clustering_pop_clustering_extra_args`, `--amplicon_sample_key_fnp`,
+`--amplicon_samples_keep_file` (see [Processing only some samples](#processing-only-some-samples)),
 `--illumina_clustering_filter_extracted_reads`, `--illumina_clustering_ref_seqs_dir`.
 
 ```bash
@@ -223,6 +224,16 @@ had extracted reads.
 More detail, including how replicates are combined and the validation rules, in
 [docs/sample_key.md](docs/sample_key.md).
 
+#### Processing only some samples
+
+`--amplicon_samples_keep_file` (Illumina and nanopore clustering, `illumina_read_qc.nf`) takes a file
+with one sample name per line (blank lines and lines starting with `#` are ignored); only those
+samples are processed. A name can be the input name (see `input` above, for nanopore the name in
+`meta/rawInputSampleNames.tsv`) or a `sample`/`replicate` name from the sample key, so naming a
+sample keeps all of its replicates, and naming one MID sample of a pooled input only clusters that
+sample. Names that don't match any input are warned about, and the run stops if none match.
+Nanopore inputs that would get the same name are still an error even if they aren't kept.
+
 ### Nanopore amplicon clustering — `nanopore_clustering.nf`
 
 **Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
@@ -250,7 +261,8 @@ SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology na
 `--nanopore_clustering_min_len`, `--nanopore_clustering_min_sample_read_count`,
 `--nanopore_clustering_max_reads_use`, `--nanopore_extractor_use_inner_primers`,
 `--nanopore_primers_errors_allowed`, `--amplicon_sample_key_fnp` (see
-[Sample key](#sample-key-renaming-replicates-and-mids)),
+[Sample key](#sample-key-renaming-replicates-and-mids)), `--amplicon_samples_keep_file` (see
+[Processing only some samples](#processing-only-some-samples)),
 `--nanopore_bam_sample_name_from_sm`, `--nanopore_input_recursive`,
 `--nanopore_sample_name_prefix_top_dir`, `--nanopore_render_clustering_report`.
 
