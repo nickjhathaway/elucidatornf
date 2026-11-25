@@ -135,7 +135,7 @@ Please correct the above issues and re-run.
     // Create output directory (overwrite if exists), keeping genomes downloaded into it
     //
     def results_dir_obj = file(outdir)
-    OutputDir.clear(results_dir_obj, PlasmodiumGenomes.enabled(params) ? PlasmodiumGenomes.rootDir(params) : null)
+    OutputDir.clear(results_dir_obj, PlasmodiumGenomes.enabled(params) ? PlasmodiumGenomes.rootDir(params) : null, params.trace_timestamp)
     results_dir_obj.mkdirs()
 
     //

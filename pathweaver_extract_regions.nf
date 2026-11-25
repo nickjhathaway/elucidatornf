@@ -28,7 +28,7 @@ main:
     def results_dir_obj = file(params.outdir)
     if (params.pw_overwrite_dir && results_dir_obj.exists()){
         // keep genomes downloaded into the output directory
-        OutputDir.clear(results_dir_obj, download_genomes ? PlasmodiumGenomes.rootDir(params) : null)
+        OutputDir.clear(results_dir_obj, download_genomes ? PlasmodiumGenomes.rootDir(params) : null, params.trace_timestamp)
     } else if (file("${results_dir_obj}/pipeline_info").exists()){
         //if the output does exist and are not overwirte, do remove the pipeline run info so the new run time info is logged
         file("${results_dir_obj}/pipeline_info").deleteDir()
