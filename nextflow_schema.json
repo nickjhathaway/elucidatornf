@@ -313,6 +313,21 @@
                 "gff_dir": {
                     "type": "string",
                     "description": "A directory of annotation gff files"
+                },
+                "download_plasmodium_genomes": {
+                    "type": "boolean",
+                    "description": "Download, unzip and index the genomes from https://github.com/nickjhathaway/plasmodium_genomes and use them for --genome_dir and --gff_dir (PathWeaver: --genome_fnp is then the name of the genome to use, default Pf3D7)",
+                    "help_text": "The genomes go into --plasmodium_genomes_dir, or <outdir>/plasmodium_genomes when that isn't given. A directory that is already extracted and indexed is reused without downloading or indexing again."
+                },
+                "plasmodium_genomes_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Directory for --download_plasmodium_genomes, default <outdir>/plasmodium_genomes"
+                },
+                "plasmodium_genomes_version": {
+                    "type": "string",
+                    "default": "v2.0.0",
+                    "description": "Tag or branch of plasmodium_genomes to download with --download_plasmodium_genomes"
                 }
             }
         }

@@ -163,6 +163,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL {
     genome_fnp   // Path to the genome file
     results_dir  // Directory to store results
     meta_fnp     // meta file
+    genomes_ready // value channel, the genome reading waits on it (for --download_plasmodium_genomes indexing)
 
     main:
 
@@ -175,7 +176,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_GENE_IDS_FULL {
     gene_infos_dir = file("${results_dir}/geneInfos/")
     gene_infos_dir.mkdirs()
 
-    GET_GENE_RECORDS_FOR_GENE_IDS(file(gene_ids_fnp), genome_twobit_fnp, gff_fnp, gene_infos_dir.toString())
+    GET_GENE_RECORDS_FOR_GENE_IDS(genomes_ready.map { _ready -> file(gene_ids_fnp) }, genome_twobit_fnp, gff_fnp, gene_infos_dir.toString())
     REMOVE_TANDEM_REPEATS_FROM_REGIONS(GET_GENE_RECORDS_FOR_GENE_IDS.out.out_allTranscripts_bed, genome_twobit_fnp)
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, REMOVE_TANDEM_REPEATS_FROM_REGIONS.out.out_with_tandems_removed, genome_fnp, results_dir, meta_fnp)
@@ -201,6 +202,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
     genome_fnp   // Path to the genome file
     results_dir  // Directory to store results
     meta_fnp     // meta file
+    genomes_ready // value channel, the genome reading waits on it (for --download_plasmodium_genomes indexing)
 
     main:
 
@@ -208,7 +210,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_SEQS_TABLE_FULL {
     seqsInfoDir.mkdirs()
     genome_dir_info = file("${genome_fnp}").getParent()
     DETERMINE_GENOMIC_LOCATION_FROM_SEQS_TABLE(
-        file(seqs_table_fnp), file(genome_dir_info), file("${genome_fnp}").name,
+        genomes_ready.map { _ready -> file(seqs_table_fnp) }, file(genome_dir_info), file("${genome_fnp}").name,
             seqs_table_seqs_col, seqs_table_name_col, seqs_table_target_col,
             params.max_cpus, seqsInfoDir.toString())
 
@@ -231,6 +233,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     genome_fnp   // Path to the genome file
     results_dir  // Directory to store results
     meta_fnp     // meta file
+    genomes_ready // value channel, the genome reading waits on it (for --download_plasmodium_genomes indexing)
 
     main:
 
@@ -240,7 +243,7 @@ workflow PATHWEAVER_EXTRACT_REGIONS_WITH_PRIMERS_FULL {
     gff_dir = file("${top_genome_info}/info/gff/")
     genome_dir = file("${genome_fnp}").getParent()
     primerInfoDir.mkdirs()
-    GEN_TARGET_INFO_FROM_GENOME(primers_fnp, primerInfoDir.toString(), genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.max_cpus)
+    GEN_TARGET_INFO_FROM_GENOME(genomes_ready.map { _ready -> file(primers_fnp) }, primerInfoDir.toString(), genome_dir, gff_dir, genome_base_name, params.nanopore_primers_errors_allowed, params.max_cpus)
 
 
     top_genome_info = file("${genome_fnp}").getParent().getParent()
@@ -326,10 +329,11 @@ workflow PATHWEAVER_EXTRACT_REGIONS_FULL {
     genome_fnp   // Path to the genome file
     results_dir  // Directory to store results
     meta_fnp     // meta file
+    genomes_ready // value channel, the genome reading waits on it (for --download_plasmodium_genomes indexing)
 
     main:
 
-    bed_fnp_ch = channel.fromPath(input_bed_fnp)
+    bed_fnp_ch = channel.fromPath(input_bed_fnp).combine(genomes_ready).map { bed, _ready -> bed }
 
     PATHWEAVER_EXTRACT_REGIONS_WITH_BED(samples_file, bams_dir, bed_fnp_ch, genome_fnp, results_dir, meta_fnp)
     workflow.onComplete {

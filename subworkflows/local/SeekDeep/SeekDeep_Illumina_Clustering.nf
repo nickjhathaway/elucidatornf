@@ -28,6 +28,7 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
     primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
     genome_dir_raw  // a directory with genomes
     gff_dir_raw // a directory with annotation gff files
+    genomes_ready // value channel, the genome reading waits on it (for --download_plasmodium_genomes indexing)
     primers_errors_allowed // errors to allow in primers
     paired_end_length //the paired end length of the input
     meta_fnp_raw //a sample meta file
@@ -164,12 +165,10 @@ Please correct the above issues and re-run.
 
 
     //
-    // Create output directory (overwrite if exists)
+    // Create output directory (overwrite if exists), keeping genomes downloaded into it
     //
     def results_dir_obj = file(outdir)
-    if (results_dir_obj.exists()) {
-        results_dir_obj.deleteDir()
-    }
+    OutputDir.clear(results_dir_obj, PlasmodiumGenomes.enabled(params) ? PlasmodiumGenomes.rootDir(params) : null)
     results_dir_obj.mkdirs()
 
 
@@ -201,7 +200,7 @@ Please correct the above issues and re-run.
     // targets that no longer overlap enough to stitch are lost instead of being clustered as <target>-R1 and <target>-R2
     def barcode_size = sample_key.values().flatten().collect { row -> row.fbarcode.size() + row.rbarcode.size() }.max() ?: 0
 
-    primers_fnp_ch = primers_fnp
+    primers_fnp_ch = genomes_ready.map { _ready -> primers_fnp }
 
 
     GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)

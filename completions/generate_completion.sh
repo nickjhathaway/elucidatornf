@@ -22,7 +22,7 @@ AMPLICON=$(extract amplicon)
 WGS_COMMON=$(extract wgs_common)
 ILLUMINA=$(extract illumina)
 NANOPORE=$(extract nanopore)
-PATHWEAVER="$(extract pathweaver) --primers_fnp"
+PATHWEAVER="$(extract pathweaver) --primers_fnp --download_plasmodium_genomes --plasmodium_genomes_dir --plasmodium_genomes_version"
 RNASEQ=$(extract rnaseq)
 WGS=$(extract wgs)
 WGS_DEPLETION=$(extract wgs_host_depletion)
@@ -99,6 +99,7 @@ _elucidatornf_complete() {
             wgs_host_depletion_pf.nf)      wf=wgs_depletion ;;
             rnaseq_process_pf.nf)          wf=rnaseq ;;
             index_genomes.nf)              wf=index ;;
+            download_plasmodium_genomes.nf) wf=download_genomes ;;
         esac
     done
 
@@ -127,6 +128,7 @@ _elucidatornf_complete() {
         wgs_depletion) flags="$_ELU_COMMON --input_fastq_dir $_ELU_WGS_COMMON $_ELU_WGS $_ELU_WGS_DEPLETION $_ELU_NXF" ;;
         rnaseq)     flags="$_ELU_COMMON --input_fastq_dir ${_ELU_WGS_COMMON/--wgs_skip_existing/} $_ELU_RNASEQ $_ELU_NXF" ;;
         index)      flags="$_ELU_COMMON --genome_dir $_ELU_NXF" ;;
+        download_genomes) flags="$_ELU_COMMON --plasmodium_genomes_dir --plasmodium_genomes_version $_ELU_NXF" ;;
         *)          flags="$_ELU_NXF" ;;
     esac
 

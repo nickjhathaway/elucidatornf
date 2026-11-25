@@ -23,6 +23,7 @@ need directly. `main.nf` is only a helper that lists the available workflows
 | `wgs_host_depletion_pf.nf` | Host read removal only, for submitting otherwise-raw reads |
 | `rnaseq_process_pf.nf` | RNA-seq processing + deconvolution (*P. falciparum*) |
 | `index_genomes.nf` | Build indexes for a directory of genomes |
+| `download_plasmodium_genomes.nf` | Download and index the [plasmodium_genomes](https://github.com/nickjhathaway/plasmodium_genomes) references |
 
 ## Usage
 
@@ -42,7 +43,8 @@ need directly. `main.nf` is only a helper that lists the available workflows
 
 These apply to every workflow:
 
-- `--outdir <dir>` — output directory (**required** by all but `index_genomes.nf`).
+- `--outdir <dir>` — output directory (**required** by all but `index_genomes.nf` and
+  `download_plasmodium_genomes.nf`).
 - `-profile <docker/singularity/apptainer/...>` — container engine / institutional profile.
 - Resources (see [`conf/params/global.config`](conf/params/global.config)):
   `--max_task_cpus` / `--max_task_memory` / `--max_task_time` cap a single task;
@@ -62,10 +64,41 @@ The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` share an option
   (`variantCalls/reports`) from those calls. `--vc_extra_args` goes to that reports step,
   `--variant_calling_ncpus` is its threads.
 
+#### Downloading the Plasmodium genomes
+
+The amplicon workflows (`illumina`, `nanopore`) and `pathweaver` can fetch their reference
+genomes from [plasmodium_genomes](https://github.com/nickjhathaway/plasmodium_genomes) with
+`--download_plasmodium_genomes`: the repo is downloaded, gunzipped and indexed
+(`elucidator bioIndexGenomes`), and `--genome_dir` / `--gff_dir` point at its `genomes/` and
+`info/gff/` (its `info/drug_resistant_aaPositions.tsv` is picked up for variant calling). For
+`pathweaver`, `--genome_fnp` is then just the name of the genome to use (e.g. `--genome_fnp PvP01`),
+default `Pf3D7`.
+
+- `--plasmodium_genomes_dir <dir>` — where to put them, default `<outdir>/plasmodium_genomes`
+  (kept when the workflows reset `--outdir`).
+- `--plasmodium_genomes_version <tag>` — tag or branch to download, default `v2.0.0`.
+
+If the directory is already extracted and indexed (every `genomes/<name>.fasta` has its gff,
+`.2bit`, bowtie2, bwa, `.fai` and blast index), it's reused without downloading or indexing, so
+point `--plasmodium_genomes_dir` at a shared location to set it up once. A partial download picks
+up where it stopped. The download runs on the machine running Nextflow, so that needs internet
+access.
+
+```bash
+nextflow run elucidatornf/illumina_clustering.nf \
+      --input_fastq_dir fastq/ \
+      --primers_fnp primers.tsv \
+      --download_plasmodium_genomes true \
+      --plasmodium_genomes_dir /data/plasmodium_genomes \
+      --outdir analysis_illumina \
+      --illumina_clustering_paired_end_length 250 \
+      -profile docker
+```
+
 ### Illumina amplicon clustering — `illumina_clustering.nf`
 
-**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
-`--outdir`, `--illumina_clustering_paired_end_length`.
+**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir` and `--gff_dir` (or
+`--download_plasmodium_genomes`), `--outdir`, `--illumina_clustering_paired_end_length`.
 
 Only the top level of `--input_fastq_dir` is searched for the paired fastqs unless
 `--illumina_input_recursive true` is given (also applies to `illumina_read_qc.nf`). Samples are named
@@ -236,8 +269,8 @@ Nanopore inputs that would get the same name are still an error even if they are
 
 ### Nanopore amplicon clustering — `nanopore_clustering.nf`
 
-**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir`, `--gff_dir`,
-`--outdir`.
+**Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir` and `--gff_dir` (or
+`--download_plasmodium_genomes`), `--outdir`.
 
 `--input_fastq_dir` can hold `.fastq(.gz)` files and/or unaligned `.bam` files straight from
 `dorado demux`, and is searched recursively (`--nanopore_input_recursive false` to only look at the
@@ -280,7 +313,7 @@ nextflow run elucidatornf/nanopore_clustering.nf \
 
 ### PathWeaver targeted region extraction — `pathweaver_extract_regions.nf`
 
-**Required:** `--bams_dir`, `--genome_fnp`, `--outdir`, **and exactly one** way to
+**Required:** `--bams_dir`, `--genome_fnp` (or `--download_plasmodium_genomes`), `--outdir`, **and exactly one** way to
 specify the target regions:
 
 - `--pw_bed_fnp <bed>` — regions from a BED file, **or**
@@ -416,6 +449,24 @@ nextflow run elucidatornf/rnaseq_process_pf.nf \
 ```bash
 nextflow run elucidatornf/index_genomes.nf \
       --genome_dir /tank/data/plasmodium/genomes/pf/genomes/ \
+      -profile <docker/singularity/apptainer/.../institute>
+```
+
+### Download Plasmodium genomes — `download_plasmodium_genomes.nf`
+
+Downloads, gunzips and indexes [plasmodium_genomes](https://github.com/nickjhathaway/plasmodium_genomes)
+on its own (the same setup as `--download_plasmodium_genomes`, see
+[Downloading the Plasmodium genomes](#downloading-the-plasmodium-genomes)), skipping whatever is
+already done. Use it to set up a shared directory once, then give the other workflows
+`--download_plasmodium_genomes --plasmodium_genomes_dir <dir>` (reused as is), or
+`--genome_dir <dir>/genomes --gff_dir <dir>/info/gff` / `--genome_fnp <dir>/genomes/Pf3D7.fasta`.
+
+**Required:** `--plasmodium_genomes_dir` (or `--outdir`, giving `<outdir>/plasmodium_genomes`).
+Optional: `--plasmodium_genomes_version` (default `v2.0.0`).
+
+```bash
+nextflow run elucidatornf/download_plasmodium_genomes.nf \
+      --plasmodium_genomes_dir /data/plasmodium_genomes \
       -profile <docker/singularity/apptainer/.../institute>
 ```
 

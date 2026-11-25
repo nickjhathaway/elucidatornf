@@ -29,6 +29,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     primers_fnp_raw  // a file with primer info, 3 columsn, target,fwd_primer,rev_primer
     genome_dir_raw  // a directory with genomes
     gff_dir_raw // a directory with annotation gff files
+    genomes_ready // value channel, the genome reading waits on it (for --download_plasmodium_genomes indexing)
     primers_errors_allowed // errors to allow in primers
     meta_fnp_raw //a sample meta file
     output_dir_raw // the output directory
@@ -131,12 +132,10 @@ Please correct the above issues and re-run.
 
 
     //
-    // Create output directory (overwrite if exists)
+    // Create output directory (overwrite if exists), keeping genomes downloaded into it
     //
     def results_dir_obj = file(outdir)
-    if (results_dir_obj.exists()) {
-        results_dir_obj.deleteDir()
-    }
+    OutputDir.clear(results_dir_obj, PlasmodiumGenomes.enabled(params) ? PlasmodiumGenomes.rootDir(params) : null)
     results_dir_obj.mkdirs()
 
     //
@@ -172,12 +171,12 @@ Please correct the above issues and re-run.
     }
     def all_mids_id_fnp = SampleKey.writeCombinedIdFile(primers_fnp, sample_key, "${mid_id_dir}/allMids_ids.tsv")
 
-    primers_fnp_ch = primers_fnp
+    primers_fnp_ch = genomes_ready.map { _ready -> primers_fnp }
 
     if (params.nanopore_extractor_use_inner_primers){
         def initial_primer_info_dir = file("${output_dir}/primerInfo/initialPrimerInfo")
         initial_primer_info_dir.mkdirs()
-        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp, initial_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
+        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp_ch, initial_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
         primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
     }
     GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
