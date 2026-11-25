@@ -40,6 +40,32 @@ class IlluminaInput {
   }
 
 /**
+* The sample names of the fastq pairs in the input directory, like the pairGlobs channel a first mate without its
+* second mate is left out
+*/
+  static Set<String> sampleNames(Path inputDir, boolean recursive, boolean strip, Set<String> keyInputs) {
+    def names = new TreeSet<String>()
+    eachFirstMate(inputDir, recursive) { Path p, String pairPrefix ->
+      def mateName = p.fileName.toString().replaceFirst(/1((_001)?\.fastq(\.gz)?)$/, '2$1')
+      if( Files.exists(p.resolveSibling(mateName)) ) names << sampleName(pairPrefix, p, strip, keyInputs)
+    }
+    return names
+  }
+
+  private static void eachFirstMate(Path inputDir, boolean recursive, Closure action) {
+    if( !Files.isDirectory(inputDir) ) return
+    def stream = Files.walk(inputDir, recursive ? Integer.MAX_VALUE : 1, FileVisitOption.FOLLOW_LINKS)
+    try {
+      stream.filter { Path p -> Files.isRegularFile(p) }.each { Path p ->
+        def m = p.fileName.toString() =~ firstMatePat
+        if( m.matches() ) action(p, m.group(1))
+      }
+    } finally {
+      stream.close()
+    }
+  }
+
+/**
 * What's wrong with the fastq pairs in the input directory, more than one pair getting the same sample name
 * (the same name in several subdirectories, or several lanes once the suffix is stripped)
 *
@@ -47,23 +73,12 @@ class IlluminaInput {
 * @return a message for each sample name given to more than one pair
 */
   static List<String> validate(Path inputDir, boolean recursive, boolean strip, Set<String> keyInputs, Closure<Boolean> keepSample = { _name -> true }) {
-    if( !Files.isDirectory(inputDir) ) {
-      return []
-    }
     def pairsBySample = [:].withDefault { [] }
-    def stream = Files.walk(inputDir, recursive ? Integer.MAX_VALUE : 1, FileVisitOption.FOLLOW_LINKS)
-    try {
-      stream.filter { Path p -> Files.isRegularFile(p) }.each { Path p ->
-        def m = p.fileName.toString() =~ firstMatePat
-        if( m.matches() ) {
-          def sample = sampleName(m.group(1), p, strip, keyInputs)
-          if( keepSample(sample) ) {
-            pairsBySample[sample] << inputDir.relativize(p).toString()
-          }
-        }
+    eachFirstMate(inputDir, recursive) { Path p, String pairPrefix ->
+      def sample = sampleName(pairPrefix, p, strip, keyInputs)
+      if( keepSample(sample) ) {
+        pairsBySample[sample] << inputDir.relativize(p).toString()
       }
-    } finally {
-      stream.close()
     }
     def hint = strip ? ", lanes aren't combined and --illumina_strip_sample_suffix false keeps the full names" : ""
     return pairsBySample.findAll { _sample, fastqs -> fastqs.size() > 1 }.collect { sample, fastqs ->

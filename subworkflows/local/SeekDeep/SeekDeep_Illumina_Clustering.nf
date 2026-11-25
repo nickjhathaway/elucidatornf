@@ -141,6 +141,20 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
     errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet(),
         { name -> SampleSelection.selectsInput(samples_keep, full_sample_key, name) })
 
+    // population clustering fails on samples that aren't in the meta, so check before any work is done
+    def meta_problems = SampleMeta.validate(meta_fnp)
+    if (meta_problems.isEmpty()) {
+        def selected_key = SampleSelection.filterKey(samples_keep, full_sample_key)
+        def sample_names = IlluminaInput.sampleNames(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet())
+            .findAll { input -> SampleSelection.selectsInput(samples_keep, full_sample_key, input) }
+            .collectMany { input -> SampleKey.rowsForInput(selected_key, input).collect { row -> row.sample } }
+        def missing_meta = SampleMeta.missingMessage(SampleMeta.load(meta_fnp), sample_names)
+        if (missing_meta) {
+            meta_problems << missing_meta
+        }
+    }
+    errors += meta_problems
+
     if (params.illumina_clustering_read_qc) {
         errors += ReadQc.validate(params, genome_dir_raw, SampleSelection.filterKey(samples_keep, full_sample_key))
     }
