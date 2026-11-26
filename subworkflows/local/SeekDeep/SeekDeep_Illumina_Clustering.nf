@@ -194,7 +194,7 @@ Please correct the above issues and re-run.
     // Create output directory (overwrite if exists), keeping genomes downloaded into it
     //
     def results_dir_obj = file(outdir)
-    OutputDir.clear(results_dir_obj, PlasmodiumGenomes.enabled(params) ? PlasmodiumGenomes.rootDir(params) : null, params.trace_timestamp)
+    OutputDir.clear(results_dir_obj, PlasmodiumGenomes.enabled(params) ? PlasmodiumGenomes.rootDir(params) : null, params.trace_timestamp, [workflow.launchDir, workflow.workDir])
     results_dir_obj.mkdirs()
 
 

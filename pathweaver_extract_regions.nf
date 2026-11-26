@@ -28,10 +28,12 @@ main:
     def results_dir_obj = file(params.outdir)
     if (params.pw_overwrite_dir && results_dir_obj.exists()){
         // keep genomes downloaded into the output directory
-        OutputDir.clear(results_dir_obj, download_genomes ? PlasmodiumGenomes.rootDir(params) : null, params.trace_timestamp)
+        OutputDir.clear(results_dir_obj, download_genomes ? PlasmodiumGenomes.rootDir(params) : null, params.trace_timestamp, [workflow.launchDir, workflow.workDir])
     } else if (file("${results_dir_obj}/pipeline_info").exists()){
         //if the output does exist and are not overwirte, do remove the pipeline run info so the new run time info is logged
-        file("${results_dir_obj}/pipeline_info").deleteDir()
+        // only the earlier runs' files, nextflow already has this run's trace open in it (on NFS deleting it leaves a
+        // .nfs placeholder that stops pipeline_info from being removed)
+        OutputDir.clear(file("${results_dir_obj}/pipeline_info"), null, params.trace_timestamp)
         //since the sub regions can change based on the input, have to delete the sub region 
         sub_region_info_dir = file("${results_dir_obj}/PathWeaverResults/subVarRegions")
         if(sub_region_info_dir.exists()){
