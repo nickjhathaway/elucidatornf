@@ -267,6 +267,14 @@ sample keeps all of its replicates, and naming one MID sample of a pooled input 
 sample. Names that don't match any input are warned about, and the run stops if none match.
 Nanopore inputs that would get the same name are still an error even if they aren't kept.
 
+#### Sample meta
+
+`--meta_fnp` (Illumina and nanopore clustering) is a tab delimited file with a header, a `sample` column
+and at least one other column, one row per sample. When it's given, every sample being processed has to be
+in it (population clustering fails otherwise), by its final name if there's a sample key. This is checked
+before extraction, for Illumina before `--outdir` is reset. Samples that shouldn't be processed, e.g. unused
+barcodes, can be left out with `--amplicon_samples_keep_file`.
+
 ### Nanopore amplicon clustering — `nanopore_clustering.nf`
 
 **Required:** `--input_fastq_dir`, `--primers_fnp`, `--genome_dir` and `--gff_dir` (or
@@ -289,10 +297,23 @@ To check a directory ahead of time:
 SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology nanopore --recursive --prefixWithTopDir
 ```
 
+#### Trimming to regions
+
+For amplicons that reads often don't cover end to end (rapid barcoding, long targets), or with low complexity sequence to
+leave out, give the primers that were amplified with as `--primers_fnp` and primers marking off regions within them as
+`--nanopore_trim_primers_fnp` (same 3 column format). The amplified primers are only used to work out which target a read is,
+to split reads of joined amplicons and to drop foldbacks; a read doesn't need to have them. Each read is cut to every region
+it covers, and only the trimming primers, the region's length and the quality are checked. A target can have several regions,
+results (`p_name`, PMO targets) are by region, and the regions' primers can be in the other direction to the amplified ones.
+The regions are matched to the amplified targets by k-mers, see `trimRegions.tab.txt` in a sample's extraction directory, and
+reads that don't cover a region are counted as `trimRegionNotCovered` in `allExtractionProfile.tsv.gz`. A read can pass for
+several regions, so `passed` can be more than the reads; `readsPassingAnyTrimRegion` in `allExtractionStats.tsv.gz` counts reads.
+
 **Key options** (see [`conf/params/nanopore.config`](conf/params/nanopore.config) /
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--nanopore_clustering_min_len`, `--nanopore_clustering_min_sample_read_count`,
 `--nanopore_clustering_max_reads_use`, `--nanopore_extractor_use_inner_primers`,
+`--nanopore_trim_primers_fnp` (see [Trimming to regions](#trimming-to-regions)),
 `--nanopore_primers_errors_allowed`, `--amplicon_sample_key_fnp` (see
 [Sample key](#sample-key-renaming-replicates-and-mids)), `--amplicon_samples_keep_file` (see
 [Processing only some samples](#processing-only-some-samples)),

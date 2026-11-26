@@ -587,7 +587,11 @@
         },
         "nanopore_extractor_primer_within_start": {
             "type": "integer",
-            "description": "how much inwards into the target to search for the primers"
+            "description": "how much inwards into the reads to search for the primers, SeekDeep's default (50) if not set. Reads are cut to their target before the search so this doesn't need to be raised for sequence in front of the primers"
+        },
+        "nanopore_trim_primers_fnp": {
+            "type": "string",
+            "description": "a file of primers, same format as primers_fnp, marking off regions within the targets of primers_fnp to trim the reads to. primers_fnp are then the amplified primers and are only used to work out which target a read is; a target can have several regions and results are by region"
         },
         "pw_extract_region_assemblies_extra_args": {
             "type": "string",

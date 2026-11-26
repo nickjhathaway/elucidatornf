@@ -15,7 +15,6 @@ include { AMPLICON_CLUSTER_BY_KMER_SIMILARITY } from '../../../modules/local/amp
 include { AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/amplicon_population_cluster/main.nf'
 include { CONCATENATE_AMPLICON_POPULATION_CLUSTERING } from '../../../modules/local/concatenate_amplicon_population_clustering/main.nf'
 include { MERGE_AMPLICON_PMOS } from '../../../modules/local/merge_amplicon_pmos/main.nf'
-include { AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR } from "../../../modules/local/amplicon_cluster_auto_SeekDeep_flag_generator/main.nf"
 include { AMPLICON_CREATE_DASHBOARDS } from "../../../modules/local/amplicon_create_dashboards/main.nf"
 include { WRITE_AMPLICON_SAMPLE_KEY } from "../../../modules/local/write_amplicon_sample_key/main.nf"
 include { SCAN_RAW_INPUT_SAMPLE_NAMES } from "../../../modules/local/scan_raw_input_sample_names/main.nf"
@@ -42,6 +41,11 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     gff_dir = file(gff_dir_raw)
     meta_fnp = file(meta_fnp_raw)
     output_dir = file(output_dir_raw)
+    // primers of regions within the targets to trim the reads to, primers_fnp are then the amplified primers (only used
+    // to work out which target a read is) and everything from the extracted reads on is by region
+    def trim_to_regions = params.nanopore_trim_primers_fnp ? true : false
+    def trim_primers_fnp = trim_to_regions ? file(params.nanopore_trim_primers_fnp) : null
+    def result_primers_fnp = trim_to_regions ? trim_primers_fnp : primers_fnp
     //
     // Set up for validation
     //
@@ -112,6 +116,17 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
         }
     }
 
+    if (trim_to_regions) {
+        if (!trim_primers_fnp.exists()) {
+            errors << "Path does not exist for --nanopore_trim_primers_fnp: '${params.nanopore_trim_primers_fnp}'"
+        }
+        if (params.nanopore_extractor_use_inner_primers) {
+            errors << "--nanopore_trim_primers_fnp and --nanopore_extractor_use_inner_primers can't be used together"
+        }
+    }
+
+    errors += SampleMeta.validate(meta_fnp)
+
     //
     // 3) Fail fast if validation failed
     //
@@ -169,7 +184,10 @@ Please correct the above issues and re-run.
     barcoded_inputs.each { input, rows ->
         SampleKey.writeIdFile(primers_fnp, rows, "${mid_id_dir}/${input}_ids.tsv")
     }
-    def all_mids_id_fnp = SampleKey.writeCombinedIdFile(primers_fnp, sample_key, "${mid_id_dir}/allMids_ids.tsv")
+    if (trim_to_regions && !barcoded_inputs.isEmpty()) {
+        error "--nanopore_trim_primers_fnp can't be used with barcodes in the sample key, they are next to the amplified primers which aren't looked for when trimming to regions"
+    }
+    SampleKey.writeCombinedIdFile(primers_fnp, sample_key, "${mid_id_dir}/allMids_ids.tsv")
 
     primers_fnp_ch = genomes_ready.map { _ready -> primers_fnp }
 
@@ -178,6 +196,13 @@ Please correct the above issues and re-run.
         initial_primer_info_dir.mkdirs()
         GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp_ch, initial_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
         primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
+    }
+    // the amplified targets' k-mers and lengths, for working out which target a read is
+    if (trim_to_regions) {
+        def amplified_primer_info_dir = file("${output_dir}/primerInfo/amplifiedPrimerInfo")
+        amplified_primer_info_dir.mkdirs()
+        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp_ch, amplified_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
+        primers_fnp_ch = genomes_ready.map { _ready -> trim_primers_fnp }
     }
     GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
 
@@ -230,23 +255,30 @@ Please correct the above issues and re-run.
     // file paths in the scan are relative to the input directory, ignored files (e.g. unclassified) are skipped
     def selected_samples_ch = scanned_samples_ch
         .filter { row -> SampleSelection.selectsInput(samples_keep, full_sample_key, row.sample) }
+        .toList()
+        .flatMap { rows ->
+            // population clustering fails on samples that aren't in the meta, so nothing is extracted until they're checked
+            def sample_names = rows.collectMany { row -> SampleKey.rowsForInput(sample_key, row.sample).collect { key_row -> key_row.sample } }
+            def missing_meta = SampleMeta.missingMessage(SampleMeta.load(meta_fnp), sample_names)
+            if (missing_meta) {
+                error "${missing_meta}"
+            }
+            rows
+        }
     def reads_input_ch = selected_samples_ch
         .map { row -> tuple(file("${input_fastq_dir}/${row.file}"), row.sample) }
     if (samples_keep != null) {
         reads_input_ch = reads_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input sample in --input_fastq_dir (see ${meta_info_dir}/rawInputSampleNames.tsv)" }
     }
 
-    // SeekDeep only looks at fastqs by default, so have it look at bams as well
-    // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account;
-    // only the input files being processed are looked at (not ignored or unselected ones), linked by sample name
-    def flag_generator_inputs_ch = selected_samples_ch
-        .map { row -> "${row.file}\t${FlagGeneratorInputs.nanoporeLinkName(row.file, row.sample)}".toString() }
-        .collectFile(name: "flag_generator_inputs.tsv", newLine: true, sort: true)
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, flag_generator_inputs_ch, all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "nanopore", params.max_cpus, extraction_reports_dir.toString(), '.*\\.(fastq(\\.gz)?|bam)')
+    // the info on the targets the reads are assigned to and, when trimming to regions, on the regions
+    def extractor_info_ch = trim_to_regions
+        ? GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.for_seek_deep_info
+            .combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
+        : GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info.map { info_dir -> tuple(info_dir, []) }
 
-    input_to_extractor = reads_input_ch.combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
-            .combine(AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR.out.out_seekdeep_extractor_flags)
-            .map{reads_fnp, sample_name, info_dir, auto_flags_fnp ->
+    input_to_extractor = reads_input_ch.combine(extractor_info_ch)
+            .map{reads_fnp, sample_name, info_dir, trim_info_dir ->
                 // an input left out of the key is a sample named after itself, which can't also be a keyed name
                 if (!sample_key.containsKey(sample_name) && keyed_names.contains(sample_name)) {
                     error "input ${sample_name} isn't in the sample key but is the name of a sample or replicate in it, add it to the key"
@@ -257,7 +289,9 @@ Please correct the above issues and re-run.
                     barcoded_inputs.containsKey(sample_name) ? file("${mid_id_dir}/${sample_name}_ids.tsv") : primers_fnp,
                     file("${info_dir}/allKmers.tab.txt.gz"),
                     file("${info_dir}/lenCutOffs.txt"),
-                    auto_flags_fnp,
+                    trim_to_regions ? trim_primers_fnp : [],
+                    trim_to_regions ? file("${trim_info_dir}/allKmers.tab.txt.gz") : [],
+                    trim_to_regions ? file("${trim_info_dir}/lenCutOffs.txt") : [],
                     params.nanopore_clustering_min_len
                 )
             }
@@ -332,7 +366,7 @@ Please correct the above issues and re-run.
                     // GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info,
                     ref_seqs_dir,
                     params.nanopore_clustering_min_sample_read_count,
-                    primers_fnp,
+                    result_primers_fnp,
                     params.pmo_panel_name
                 )
         }

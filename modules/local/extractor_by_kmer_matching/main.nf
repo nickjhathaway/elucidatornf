@@ -5,7 +5,8 @@ process EXTRACTOR_BY_KMER_MATCHING {
 
     input:
     // reads_fnp can be a .fastq, .fastq.gz or an unaligned .bam (e.g. from dorado demux)
-    tuple path(reads_fnp), val(sample_name), path(primers_fnp), path(kmers_sets), path(length_cut_offs_per_target), path(auto_flags_fnp), val (min_len_cut_off)
+    // the trim inputs are empty lists unless the reads are trimmed to regions within the targets (--nanopore_trim_primers_fnp)
+    tuple path(reads_fnp), val(sample_name), path(primers_fnp), path(kmers_sets), path(length_cut_offs_per_target), path(trim_primers_fnp, stageAs: "trim_primers/*"), path(trim_kmers_sets, stageAs: "trim_info/*"), path(trim_length_cut_offs, stageAs: "trim_info/*"), val (min_len_cut_off)
 
     output:
     tuple val(sample_name), path("extraction/*.fastq.gz"), emit: fastqs_per_target, optional : true
@@ -21,6 +22,7 @@ process EXTRACTOR_BY_KMER_MATCHING {
     def reads_arg = reads_fnp.name.endsWith(".bam") ? "--bam ${reads_fnp}"
         : reads_fnp.name.endsWith(".gz") ? "--fastqgz ${reads_fnp}"
         : "--fastq ${reads_fnp}"
+    def trim_args = trim_primers_fnp ? "--trimPrimers ${trim_primers_fnp} --trimKmersPerTarget ${trim_kmers_sets} --trimLenCutOffs ${trim_length_cut_offs}" : ""
 
     """
     SeekDeep extractorByKmerMatching \
@@ -32,7 +34,7 @@ process EXTRACTOR_BY_KMER_MATCHING {
             --sampleName ${sample_name} \
             --lenCutOffs ${length_cut_offs_per_target} \
             --minLenCutOff ${min_len_cut_off}\
-            ${extra_args} \$(cat ${auto_flags_fnp})
+            ${trim_args} ${extra_args}
     ln -s extraction/extractionProfile.tab.txt ${sample_name}_extractionProfile.tab.txt
     ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt
     if [ -f extraction/extractionProfilePerMID.tab.txt ]; then
