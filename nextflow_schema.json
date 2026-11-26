@@ -579,7 +579,7 @@
         },
         "nanopore_extractor_use_inner_primers": {
             "type": "boolean",
-            "description": "during nanopore clustering, use the inner primers instead of the default primers"
+            "description": "trim the reads to inner primers made from the first and last 25 bases of each target's sequences, the same way as --nanopore_trim_primers_fnp (which it can't be used with); the given primers are then only used to work out which target a read is"
         },
         "nanopore_clustering_lower_base": {
             "type": "string",

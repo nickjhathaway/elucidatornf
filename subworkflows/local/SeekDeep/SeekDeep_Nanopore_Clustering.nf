@@ -45,7 +45,10 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
     // to work out which target a read is) and everything from the extracted reads on is by region
     def trim_to_regions = params.nanopore_trim_primers_fnp ? true : false
     def trim_primers_fnp = trim_to_regions ? file(params.nanopore_trim_primers_fnp) : null
-    def result_primers_fnp = trim_to_regions ? trim_primers_fnp : primers_fnp
+    // with --nanopore_extractor_use_inner_primers the reads are trimmed the same way, to inner primers made from the ends of each target's sequences
+    // (given on the command line it's the string "false", which groovy would take as true)
+    def use_inner_primers = params.nanopore_extractor_use_inner_primers.toString().toBoolean()
+    def trim_reads = trim_to_regions || use_inner_primers
     //
     // Set up for validation
     //
@@ -120,7 +123,7 @@ workflow NANOPORE_AMPLICON_CLUSTERING {
         if (!trim_primers_fnp.exists()) {
             errors << "Path does not exist for --nanopore_trim_primers_fnp: '${params.nanopore_trim_primers_fnp}'"
         }
-        if (params.nanopore_extractor_use_inner_primers) {
+        if (use_inner_primers) {
             errors << "--nanopore_trim_primers_fnp and --nanopore_extractor_use_inner_primers can't be used together"
         }
     }
@@ -156,7 +159,7 @@ Please correct the above issues and re-run.
     //
     // Inner primers logic
     //
-    if (params.nanopore_extractor_use_inner_primers) {
+    if (use_inner_primers) {
         params.nanopore_clustering_lower_base = "upper"
     }
 
@@ -184,26 +187,27 @@ Please correct the above issues and re-run.
     barcoded_inputs.each { input, rows ->
         SampleKey.writeIdFile(primers_fnp, rows, "${mid_id_dir}/${input}_ids.tsv")
     }
-    if (trim_to_regions && !barcoded_inputs.isEmpty()) {
-        error "--nanopore_trim_primers_fnp can't be used with barcodes in the sample key, they are next to the amplified primers which aren't looked for when trimming to regions"
+    if (trim_reads && !barcoded_inputs.isEmpty()) {
+        error "${use_inner_primers ? '--nanopore_extractor_use_inner_primers' : '--nanopore_trim_primers_fnp'} can't be used with barcodes in the sample key, they are next to the amplified primers which aren't looked for when trimming to regions"
     }
     SampleKey.writeCombinedIdFile(primers_fnp, sample_key, "${mid_id_dir}/allMids_ids.tsv")
 
     primers_fnp_ch = genomes_ready.map { _ready -> primers_fnp }
 
-    if (params.nanopore_extractor_use_inner_primers){
-        def initial_primer_info_dir = file("${output_dir}/primerInfo/initialPrimerInfo")
-        initial_primer_info_dir.mkdirs()
-        GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp_ch, initial_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
-        primers_fnp_ch = GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
-    }
-    // the amplified targets' k-mers and lengths, for working out which target a read is
-    if (trim_to_regions) {
+    // when trimming, the amplified targets' k-mers and lengths, for working out which target a read is, and the primers to trim to,
+    // either the given ones or the inner primers made from the amplified targets' sequences
+    def trim_primers_ch = channel.empty()
+    if (trim_reads) {
         def amplified_primer_info_dir = file("${output_dir}/primerInfo/amplifiedPrimerInfo")
         amplified_primer_info_dir.mkdirs()
         GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL(primers_fnp_ch, amplified_primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
-        primers_fnp_ch = genomes_ready.map { _ready -> trim_primers_fnp }
+        trim_primers_ch = use_inner_primers
+            ? GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.inner_primers
+            : genomes_ready.map { _ready -> trim_primers_fnp }
+        primers_fnp_ch = trim_primers_ch
     }
+    // the primers the results are for
+    def result_primers_ch = trim_reads ? trim_primers_ch : genomes_ready.map { _ready -> primers_fnp }
     GEN_TARGET_INFO_FROM_GENOMES_NANOPORE(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, primers_errors_allowed, params.max_cpus)
 
     // given on the command line these are the string "false", which groovy would take as true
@@ -272,13 +276,14 @@ Please correct the above issues and re-run.
     }
 
     // the info on the targets the reads are assigned to and, when trimming to regions, on the regions
-    def extractor_info_ch = trim_to_regions
+    def extractor_info_ch = trim_reads
         ? GEN_TARGET_INFO_FROM_GENOMES_NANOPORE_INITIAL.out.for_seek_deep_info
             .combine(GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info)
-        : GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info.map { info_dir -> tuple(info_dir, []) }
+            .combine(trim_primers_ch)
+        : GEN_TARGET_INFO_FROM_GENOMES_NANOPORE.out.for_seek_deep_info.map { info_dir -> tuple(info_dir, [], []) }
 
     input_to_extractor = reads_input_ch.combine(extractor_info_ch)
-            .map{reads_fnp, sample_name, info_dir, trim_info_dir ->
+            .map{reads_fnp, sample_name, info_dir, trim_info_dir, trim_primers ->
                 // an input left out of the key is a sample named after itself, which can't also be a keyed name
                 if (!sample_key.containsKey(sample_name) && keyed_names.contains(sample_name)) {
                     error "input ${sample_name} isn't in the sample key but is the name of a sample or replicate in it, add it to the key"
@@ -289,9 +294,9 @@ Please correct the above issues and re-run.
                     barcoded_inputs.containsKey(sample_name) ? file("${mid_id_dir}/${sample_name}_ids.tsv") : primers_fnp,
                     file("${info_dir}/allKmers.tab.txt.gz"),
                     file("${info_dir}/lenCutOffs.txt"),
-                    trim_to_regions ? trim_primers_fnp : [],
-                    trim_to_regions ? file("${trim_info_dir}/allKmers.tab.txt.gz") : [],
-                    trim_to_regions ? file("${trim_info_dir}/lenCutOffs.txt") : [],
+                    trim_reads ? trim_primers : [],
+                    trim_reads ? file("${trim_info_dir}/allKmers.tab.txt.gz") : [],
+                    trim_reads ? file("${trim_info_dir}/lenCutOffs.txt") : [],
                     params.nanopore_clustering_min_len
                 )
             }
@@ -357,7 +362,8 @@ Please correct the above issues and re-run.
         // .groupTuple(by : 1, size: fastq_count)
         .groupTuple(by : 1)
         .combine(ref_seqs_dir_ch)
-        .map { _samples, target, target_fastqs, ref_seqs_dir ->
+        .combine(result_primers_ch)
+        .map { _samples, target, target_fastqs, ref_seqs_dir, result_primers_fnp ->
                 tuple(
                     target_fastqs, // List of fastq files for this target
                     target,

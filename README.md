@@ -309,6 +309,10 @@ The regions are matched to the amplified targets by k-mers, see `trimRegions.tab
 reads that don't cover a region are counted as `trimRegionNotCovered` in `allExtractionProfile.tsv.gz`. A read can pass for
 several regions, so `passed` can be more than the reads; `readsPassingAnyTrimRegion` in `allExtractionStats.tsv.gz` counts reads.
 
+`--nanopore_extractor_use_inner_primers` trims the same way, to inner primers made from the first and last 25 bases of each
+target's sequences (just inside the amplified primers, one region per target), and keeps those bases upper case for clustering.
+It can't be used with `--nanopore_trim_primers_fnp`.
+
 **Key options** (see [`conf/params/nanopore.config`](conf/params/nanopore.config) /
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--nanopore_clustering_min_len`, `--nanopore_clustering_min_sample_read_count`,
