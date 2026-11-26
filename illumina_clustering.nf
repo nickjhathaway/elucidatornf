@@ -15,8 +15,11 @@ main:
         input_fastq_dir   : '--input_fastq_dir',
         primers_fnp       : '--primers_fnp',
         outdir            : '--outdir',
-        illumina_clustering_paired_end_length : '--illumina_clustering_paired_end_length',
     ]
+    // single end reads cover the whole amplicon so there's no read length to give
+    if (!params.illumina_single_end.toString().toBoolean()) {
+        required_params.illumina_clustering_paired_end_length = '--illumina_clustering_paired_end_length'
+    }
 
     def download_genomes = PlasmodiumGenomes.enabled(params)
     if (!download_genomes) {

@@ -1,0 +1,40 @@
+// SeekDeep's single end extractor, for Illumina reads that come one per spot, e.g. pairs merged before they were
+// uploaded to the SRA; its reports are laid out like extractorPairedEnd's minus the pair processing (stitching)
+// columns, so it emits the same reports as ILLUMINA_EXTRACTOR other than processPairsCounts and primerDimerCounts
+process ILLUMINA_SINGLE_END_EXTRACTOR {
+    tag "${sample_name}_illumina_single_end_extractor"
+    label 'process_single'
+
+
+    input:
+    tuple path(fastq_fnp), val(sample_name), path(primers_fnp), path(length_cut_offs_per_target), path(auto_flags_fnp), path(ref_seqs_dir, name: 'extraction_ref_seqs'), val(filter_extracted_reads)
+
+    output:
+    tuple val(sample_name), path("extraction/*.fastq.gz"), emit: fastqs_per_target, optional : true
+    tuple val(sample_name), path("extraction/"), emit: sample_dir
+
+    path "${sample_name}_extractionProfile.tab.txt", emit: extraction_profile_per_target
+    path "${sample_name}_extractionStats.tab.txt", emit: extraction_stats
+    path "${sample_name}_allFailedPrimerCounts.tab.txt", emit: failed_primer_counts
+
+    script:
+    def extra_args = task.ext.args ? task.ext.args : ''
+    def compare_seq_arg = filter_extracted_reads ? "--compareSeq ${ref_seqs_dir}" : ''
+
+    """
+    SeekDeep extractor \
+            --illumina \
+            --dout extraction \
+            --rename \
+            --fastqgz ${fastq_fnp} \
+            --id ${primers_fnp} \
+            --sampleName ${sample_name} \
+            --lenCutOffs ${length_cut_offs_per_target} \
+            ${compare_seq_arg} \
+            ${extra_args} \$(cat ${auto_flags_fnp})
+    ln -s extraction/extractionProfile.tab.txt ${sample_name}_extractionProfile.tab.txt
+    ln -s extraction/extractionStats.tab.txt ${sample_name}_extractionStats.tab.txt
+    ln -s extraction/allFailedPrimerCounts.tab.txt ${sample_name}_allFailedPrimerCounts.tab.txt
+
+    """
+}

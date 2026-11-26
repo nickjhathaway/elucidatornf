@@ -25,6 +25,10 @@ workflow ILLUMINA_READ_QC {
     def output_dir = file(output_dir_raw)
     def errors = []
 
+    if (params.illumina_single_end.toString().toBoolean()) {
+        errors << "illumina_read_qc.nf doesn't handle --illumina_single_end input, the read QC needs fastq pairs"
+    }
+
     if (!input_fastq_dir.isDirectory()) {
         errors << "Directory does not exist for --input_fastq_dir: '${input_fastq_dir_raw}'"
     }

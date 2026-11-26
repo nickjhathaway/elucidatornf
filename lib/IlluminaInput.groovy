@@ -10,6 +10,13 @@ class IlluminaInput {
   // the first mates the pairGlobs find, the first group is the fromFilePairs prefix
   static final String firstMatePat = /^(.+)_R?1(_001)?\.fastq(\.gz)?$/
 
+  // single end fastqs (--illumina_single_end), the first group is the file name minus the extension
+  static final String singleEndPat = /^(.+?)\.fastq(\.gz)?$/
+
+  // the read length genTargetInfoFromGenomes gets for single end input, single end reads cover the whole target so
+  // it's longer than any amplicon, which makes every target overlap and keeps its refSeqs whole
+  static final int singleEndReadLength = 10000
+
 /**
 * The fromFilePairs patterns for the paired fastqs in the input directory, ** also searches its subdirectories
 *
@@ -50,6 +57,70 @@ class IlluminaInput {
       if( Files.exists(p.resolveSibling(mateName)) ) names << sampleName(pairPrefix, p, strip, keyInputs)
     }
     return names
+  }
+
+/**
+* The fromPath pattern for the single end fastqs in the input directory (--illumina_single_end), ** also searches its
+* subdirectories
+*/
+  static String singleEndGlob(def inputDir, boolean recursive) {
+    def star = recursive ? "**" : "*"
+    return "${inputDir}/${star}.fastq{.gz,}".toString()
+  }
+
+/**
+* The sample name for a single end fastq, the file name minus its extension, with strip an illumina named file
+* (9_S390_L001_R1_001.fastq.gz) loses its suffix like a pair would, unless the sample key has the full name as an input
+*
+* @param fastq the fastq
+* @return the sample name
+*/
+  static String singleEndSampleName(def fastq, boolean strip, Set<String> keyInputs) {
+    def fileName = fastq.getFileName().toString()
+    def m = fileName =~ singleEndPat
+    def base = m.matches() ? m.group(1) : fileName
+    if( !strip || keyInputs.contains(base) ) {
+      return base
+    }
+    def illuminaMatch = fileName =~ illuminaNamePat
+    return (illuminaMatch.matches() && illuminaMatch.group(1)) ? illuminaMatch.group(1) : base
+  }
+
+/**
+* The sample names of the single end fastqs in the input directory
+*/
+  static Set<String> singleEndSampleNames(Path inputDir, boolean recursive, boolean strip, Set<String> keyInputs) {
+    def names = new TreeSet<String>()
+    eachSingleEnd(inputDir, recursive) { Path p -> names << singleEndSampleName(p, strip, keyInputs) }
+    return names
+  }
+
+/**
+* Like validate for the single end fastqs, more than one fastq getting the same sample name (the same name in several
+* subdirectories, or the R1 and R2 of a pair, which aren't single end)
+*/
+  static List<String> validateSingleEnd(Path inputDir, boolean recursive, boolean strip, Set<String> keyInputs, Closure<Boolean> keepSample = { _name -> true }) {
+    def fastqsBySample = [:].withDefault { [] }
+    eachSingleEnd(inputDir, recursive) { Path p ->
+      def sample = singleEndSampleName(p, strip, keyInputs)
+      if( keepSample(sample) ) {
+        fastqsBySample[sample] << inputDir.relativize(p).toString()
+      }
+    }
+    def hint = strip ? ", --illumina_strip_sample_suffix false keeps the full names" : ""
+    return fastqsBySample.findAll { _sample, fastqs -> fastqs.size() > 1 }.collect { sample, fastqs ->
+      "Sample name '${sample}' would be given to more than one fastq in --input_fastq_dir with --illumina_single_end, rename them so they're unique (paired fastqs need the default paired end mode)${hint}: ${fastqs.sort().join(", ")}".toString()
+    }
+  }
+
+  private static void eachSingleEnd(Path inputDir, boolean recursive, Closure action) {
+    if( !Files.isDirectory(inputDir) ) return
+    def stream = Files.walk(inputDir, recursive ? Integer.MAX_VALUE : 1, FileVisitOption.FOLLOW_LINKS)
+    try {
+      stream.filter { Path p -> Files.isRegularFile(p) && p.fileName.toString() ==~ singleEndPat }.each { Path p -> action(p) }
+    } finally {
+      stream.close()
+    }
   }
 
   private static void eachFirstMate(Path inputDir, boolean recursive, Closure action) {

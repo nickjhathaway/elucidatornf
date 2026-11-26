@@ -5,6 +5,7 @@ nextflow.enable.dsl = 2
 
 
 include { ILLUMINA_EXTRACTOR } from '../../../modules/local/illumina_extractor'
+include { ILLUMINA_SINGLE_END_EXTRACTOR } from '../../../modules/local/illumina_single_end_extractor/main.nf'
 include { COMBINE_VARIANT_CALLS } from '../../../modules/local/combine_variant_calls/main.nf'
 include { popClusteringVariantCallArgs; noPopClusteringVariantCalls; pmoPreferredGenomes; variantCallGenomes; readTargetGenomes; variantCallGenomeFor } from '../variant_call_setup.nf'
 include { ASSIGN_TARGET_GENOMES } from '../../../modules/local/assign_target_genomes/main.nf'
@@ -135,17 +136,24 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
 
     def input_recursive = params.illumina_input_recursive.toString().toBoolean()
     def strip_suffix = params.illumina_strip_sample_suffix.toString().toBoolean()
+    // one fastq per sample rather than pairs, e.g. pairs merged before they were uploaded to the SRA
+    def single_end = params.illumina_single_end.toString().toBoolean()
     // optional list of the samples to process (--amplicon_samples_keep_file), null processes everything
     def full_sample_key = SampleKey.load(SampleKey.keyFnp(params))
     def samples_keep = SampleSelection.load(params.amplicon_samples_keep_file)
-    errors += IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet(),
-        { name -> SampleSelection.selectsInput(samples_keep, full_sample_key, name) })
+    def keep_input = { name -> SampleSelection.selectsInput(samples_keep, full_sample_key, name) }
+    errors += single_end ?
+        IlluminaInput.validateSingleEnd(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet(), keep_input) :
+        IlluminaInput.validate(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet(), keep_input)
 
     // population clustering fails on samples that aren't in the meta, so check before any work is done
     def meta_problems = SampleMeta.validate(meta_fnp)
     if (meta_problems.isEmpty()) {
         def selected_key = SampleSelection.filterKey(samples_keep, full_sample_key)
-        def sample_names = IlluminaInput.sampleNames(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet())
+        def input_names = single_end ?
+            IlluminaInput.singleEndSampleNames(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet()) :
+            IlluminaInput.sampleNames(input_fastq_dir, input_recursive, strip_suffix, full_sample_key.keySet())
+        def sample_names = input_names
             .findAll { input -> SampleSelection.selectsInput(samples_keep, full_sample_key, input) }
             .collectMany { input -> SampleKey.rowsForInput(selected_key, input).collect { row -> row.sample } }
         def missing_meta = SampleMeta.missingMessage(SampleMeta.load(meta_fnp), sample_names)
@@ -156,7 +164,11 @@ workflow ILLUMINA_AMPLICON_CLUSTERING {
     errors += meta_problems
 
     if (params.illumina_clustering_read_qc) {
-        errors += ReadQc.validate(params, genome_dir_raw, SampleSelection.filterKey(samples_keep, full_sample_key))
+        if (single_end) {
+            errors << "--illumina_clustering_read_qc doesn't handle --illumina_single_end input, the read QC needs fastq pairs"
+        } else {
+            errors += ReadQc.validate(params, genome_dir_raw, SampleSelection.filterKey(samples_keep, full_sample_key))
+        }
     }
 
     //
@@ -217,11 +229,18 @@ Please correct the above issues and re-run.
     primers_fnp_ch = genomes_ready.map { _ready -> primers_fnp }
 
 
-    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, paired_end_length, barcode_size, primers_errors_allowed, params.max_cpus)
+    // single end reads cover the whole amplicon, so the read length is set long enough that every target is
+    // treated as overlapping, which keeps whole target refSeqs rather than the <target>-R1/-R2 ones of NoOverLap targets
+    def target_info_read_length = single_end ? IlluminaInput.singleEndReadLength : paired_end_length
+    GEN_TARGET_INFO_FROM_GENOMES_ILLUMINA(primers_fnp_ch, primer_info_dir.toString(), genome_dir, gff_dir, target_info_read_length, barcode_size, primers_errors_allowed, params.max_cpus)
 
     //@todo, concatenate lanes if multiple present
-    def named_fastqs_ch = channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
-        .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, full_sample_key.keySet()), reads, pair_prefix) }
+    // sample name, its fastqs (a pair, or one with --illumina_single_end), and the name before the suffix is stripped
+    def named_fastqs_ch = single_end ?
+        channel.fromPath(IlluminaInput.singleEndGlob(input_fastq_dir, input_recursive))
+            .map { fastq -> tuple(IlluminaInput.singleEndSampleName(fastq, strip_suffix, full_sample_key.keySet()), [fastq], IlluminaInput.singleEndSampleName(fastq, false, [] as Set)) } :
+        channel.fromFilePairs(IlluminaInput.pairGlobs(input_fastq_dir, input_recursive))
+            .map { pair_prefix, reads -> tuple(IlluminaInput.sampleName(pair_prefix, reads[0], strip_suffix, full_sample_key.keySet()), reads, pair_prefix) }
     fastq_input_ch = named_fastqs_ch
         .filter { sample_id, _reads, _pair_prefix -> SampleSelection.selectsInput(samples_keep, full_sample_key, sample_id) }
         .map { sample_id, reads, _pair_prefix -> tuple(sample_id, reads) }
@@ -235,19 +254,19 @@ Please correct the above issues and re-run.
                 log.warn "--amplicon_samples_keep_file names that don't match any input sample and won't be processed: ${unmatched.join(", ")}${hint}"
             }
         }
-        fastq_input_ch = fastq_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input fastq pair in --input_fastq_dir: '${input_fastq_dir}'" }
+        fastq_input_ch = fastq_input_ch.ifEmpty { error "None of the samples in --amplicon_samples_keep_file match an input fastq in --input_fastq_dir: '${input_fastq_dir}'" }
     }
     // with MIDs the flags are guessed with every barcode in the key so the MIDs are taken into account;
     // only the fastq pairs being processed are looked at, other files in the input directory can trip up SeekDeep
     def flag_generator_inputs_ch = fastq_input_ch
         .flatMap { _sample_id, reads -> reads.collect { fastq -> FlagGeneratorInputs.line(input_fastq_dir, fastq, fastq.name) } }
         .collectFile(name: "flag_generator_inputs.tsv", newLine: true, sort: true)
-    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, flag_generator_inputs_ch, all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, "illumina", params.max_cpus, extraction_reports_dir.toString(), "")
+    AMPLICON_CLUSTER_AUTO_SEEKDEEP_FLAG_GENERATOR(input_fastq_dir, flag_generator_inputs_ch, all_mids_id_fnp ? file(all_mids_id_fnp) : primers_fnp_ch, single_end ? "illumina-singleend" : "illumina", params.max_cpus, extraction_reports_dir.toString(), "")
     if (!sample_key.isEmpty()) {
         fastq_input_ch.map { sample_id, _reads -> sample_id }.collect().subscribe { names ->
             def unmatched = sample_key.keySet().findAll { input -> !names.contains(input) }.sort()
             if (unmatched) {
-                log.warn "sample key inputs that don't match any input fastq pair and won't be used: ${unmatched.join(", ")}"
+                log.warn "sample key inputs that don't match any input fastq and won't be used: ${unmatched.join(", ")}"
             }
         }
     }
@@ -265,29 +284,63 @@ Please correct the above issues and re-run.
                 if (!sample_key.containsKey(sample_id) && keyed_names.contains(sample_id)) {
                     error "input ${sample_id} isn't in the sample key but is the name of a sample or replicate in it, add it to the key"
                 }
-                tuple(
-                    reads[0],
-                    reads[1],
-                    sample_id,
-                    barcoded_inputs.containsKey(sample_id) ? file("${mid_id_dir}/${sample_id}_ids.tsv") : primers_fnp,
-                    file("${info_dir}/overlapStatuses.txt"),
-                    file("${info_dir}/lenCutOffs.txt"),
-                    auto_flags_fnp,
-                    ref_seqs_dir,
-                    params.illumina_clustering_filter_extracted_reads,
-                )
+                def id_fnp = barcoded_inputs.containsKey(sample_id) ? file("${mid_id_dir}/${sample_id}_ids.tsv") : primers_fnp
+                // the single end extractor doesn't stitch pairs so it has no use for the overlap statuses
+                single_end ?
+                    tuple(
+                        reads[0],
+                        sample_id,
+                        id_fnp,
+                        file("${info_dir}/lenCutOffs.txt"),
+                        auto_flags_fnp,
+                        ref_seqs_dir,
+                        params.illumina_clustering_filter_extracted_reads,
+                    ) :
+                    tuple(
+                        reads[0],
+                        reads[1],
+                        sample_id,
+                        id_fnp,
+                        file("${info_dir}/overlapStatuses.txt"),
+                        file("${info_dir}/lenCutOffs.txt"),
+                        auto_flags_fnp,
+                        ref_seqs_dir,
+                        params.illumina_clustering_filter_extracted_reads,
+                    )
             }
 
-    //illumina extractor
-    ILLUMINA_EXTRACTOR(input_to_extractor)
+    //illumina extractor, the single end one writes the same reports minus the pair processing ones
+    def extractor_sample_dir_ch
+    def extraction_profile_ch
+    def extraction_stats_ch
+    def failed_primer_counts_ch
+    def process_pair_counts_ch
+    def primer_dimer_counts_ch
+    if (single_end) {
+        ILLUMINA_SINGLE_END_EXTRACTOR(input_to_extractor)
+        extractor_sample_dir_ch = ILLUMINA_SINGLE_END_EXTRACTOR.out.sample_dir
+        extraction_profile_ch = ILLUMINA_SINGLE_END_EXTRACTOR.out.extraction_profile_per_target | collect
+        extraction_stats_ch = ILLUMINA_SINGLE_END_EXTRACTOR.out.extraction_stats | collect
+        failed_primer_counts_ch = ILLUMINA_SINGLE_END_EXTRACTOR.out.failed_primer_counts | collect
+        process_pair_counts_ch = channel.value([])
+        primer_dimer_counts_ch = channel.value([])
+    } else {
+        ILLUMINA_EXTRACTOR(input_to_extractor)
+        extractor_sample_dir_ch = ILLUMINA_EXTRACTOR.out.sample_dir
+        extraction_profile_ch = ILLUMINA_EXTRACTOR.out.extraction_profile_per_target | collect
+        extraction_stats_ch = ILLUMINA_EXTRACTOR.out.extraction_stats | collect
+        failed_primer_counts_ch = ILLUMINA_EXTRACTOR.out.failed_primer_counts | collect
+        process_pair_counts_ch = ILLUMINA_EXTRACTOR.out.process_pair_counts | collect
+        primer_dimer_counts_ch = ILLUMINA_EXTRACTOR.out.primer_dimer_counts | collect
+    }
 
     //concatenate extraction files
     CONCATENATE_ILLUMINA_EXTRACTOR(
-        ILLUMINA_EXTRACTOR.out.extraction_profile_per_target | collect,
-        ILLUMINA_EXTRACTOR.out.extraction_stats | collect,
-        ILLUMINA_EXTRACTOR.out.failed_primer_counts | collect,
-        ILLUMINA_EXTRACTOR.out.process_pair_counts | collect,
-        ILLUMINA_EXTRACTOR.out.primer_dimer_counts | collect,
+        extraction_profile_ch,
+        extraction_stats_ch,
+        failed_primer_counts_ch,
+        process_pair_counts_ch,
+        primer_dimer_counts_ch,
         extraction_reports_dir.toString()
     )
 
@@ -323,7 +376,7 @@ Please correct the above issues and re-run.
     // are clustered as two separate targets named <target>-R1 and <target>-R2
     // An input holds a single sample, or several MID tagged ones when it has barcodes in the sample key.
     // Each sample/replicate is clustered on its own and population clustering combines the replicates of a sample
-    def clustered_inputs_with_key = targets.combine(ILLUMINA_EXTRACTOR.out.sample_dir)
+    def clustered_inputs_with_key = targets.combine(extractor_sample_dir_ch)
         .flatMap { tar, input, sampdir ->
             SampleKey.rowsForInput(sample_key, input).collectMany { row ->
                 def found_inputs = []

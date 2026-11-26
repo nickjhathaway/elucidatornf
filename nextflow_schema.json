@@ -540,6 +540,11 @@
             "default": false,
             "description": "search --input_fastq_dir recursively for the paired fastqs, the sample names (file names minus _R1/_R2) have to be unique across the subdirectories"
         },
+        "illumina_single_end": {
+            "type": "boolean",
+            "default": false,
+            "description": "the input is one fastq per sample rather than R1/R2 pairs, e.g. pairs merged before they were uploaded to the SRA; the reads are extracted with SeekDeep extractor instead of extractorPairedEnd, samples are named by the file name minus .fastq(.gz) (and the illumina suffix with --illumina_strip_sample_suffix), --illumina_clustering_paired_end_length isn't needed and --illumina_clustering_read_qc isn't supported"
+        },
         "illumina_strip_sample_suffix": {
             "type": "boolean",
             "default": true,

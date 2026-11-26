@@ -106,6 +106,13 @@ by the file name minus the Illumina suffix, like SeekDeep (`9_S390_R1_001.fastq.
 `--illumina_strip_sample_suffix false` keeps `9_S390`). Two fastq pairs getting the same name (the
 same file name in two subdirectories, or several lanes of a sample) is an error.
 
+`--illumina_single_end` takes one fastq per sample instead of pairs, e.g. SRA runs whose pairs were merged
+before upload (they come down as one `<run>.fastq.gz` even when the SRA says PAIRED). Samples are named by
+the file name minus `.fastq(.gz)` (and the Illumina suffix, as above), the reads are extracted with
+`SeekDeep extractor` instead of `extractorPairedEnd`, `--illumina_clustering_paired_end_length` isn't
+needed, and there's no `allProcessPairsCounts`/`allPrimerDimerCounts` report. `--illumina_clustering_read_qc`
+and `illumina_read_qc.nf` don't support it.
+
 **Key options** (see [`conf/params/illumina.config`](conf/params/illumina.config) /
 [`conf/params/amplicon.config`](conf/params/amplicon.config)):
 `--illumina_clustering_min_sample_read_count`, `--illumina_clustering_trim_front`,
